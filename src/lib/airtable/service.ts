@@ -5,17 +5,28 @@ import { FieldSet } from 'airtable';
 // Helper to map record to Product
 const mapToProduct = (record: any): Product => {
     const fields = record.fields;
+
+    // Duration formatting helper (Airtable returns seconds)
+    const formatDuration = (seconds?: number) => {
+        if (typeof seconds !== 'number') return undefined;
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
     return {
         id: record.id,
         destination: fields['Destino'] as string || 'General',
-        tourName: fields['Atividade'] as string || 'Unnamed Tour',
+        tourName: fields['Serviço'] as string || 'Unnamed Tour',
         category: fields['Categoria do Serviço'] as string || 'Other',
+        subCategory: Array.isArray(fields['Categoria']) ? fields['Categoria'].join(', ') : fields['Categoria'] as string,
+        taxasExtras: fields['Taxas Extras?'] as string,
         basePrice: fields['INV26 ADU'] as number || 0,
         priceAdulto: fields['INV26 ADU'] as number || 0,
         priceMenor: fields['INV26 CHD'] as number || 0,
         priceBebe: fields['INV26 INF'] as number || 0,
-        pickup: fields['Pickup'] as string,
-        retorno: fields['Retorno'] as string,
+        pickup: formatDuration(fields['Pickup']),
+        retorno: formatDuration(fields['Retorno']),
         temporada: Array.isArray(fields['Temporada']) ? fields['Temporada'].join(', ') : fields['Temporada'] as string,
         diasElegiveis: fields['Dias elegíveis'] as string[],
         imageUrl: fields['Mídia do Passeio']?.[0]?.url,

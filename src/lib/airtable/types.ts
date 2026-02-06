@@ -11,6 +11,8 @@ export interface Product {
     retorno?: string;
     temporada?: string;
     diasElegiveis?: string[];
+    subCategory?: string; // Column 'Categoria' in Airtable
+    taxasExtras?: string; // Column 'Taxas Extras?' in Airtable
     imageUrl?: string;
 }
 

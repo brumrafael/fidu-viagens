@@ -16,6 +16,8 @@ export interface AgencyProduct {
     retorno?: string;
     temporada?: string;
     diasElegiveis?: string[];
+    subCategory?: string;
+    taxasExtras?: string;
     imageUrl?: string;
 }
 
@@ -61,6 +63,8 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
                 retorno: product.retorno,
                 temporada: product.temporada,
                 diasElegiveis: product.diasElegiveis,
+                subCategory: product.subCategory,
+                taxasExtras: product.taxasExtras,
                 imageUrl: product.imageUrl
             };
         });

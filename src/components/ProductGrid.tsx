@@ -83,14 +83,16 @@ export function ProductGrid({ products }: ProductGridProps) {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50/50 border-b border-gray-100">
-                                <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight w-20">Sta.</th>
+                                <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight w-20">Tipo</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Destino</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Serviço</th>
+                                <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Categoria</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight text-right">Adulto</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight text-right">Menor</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight text-right">Bebê</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Pickup</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Retorno</th>
+                                <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Taxas</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Temporada</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-tight">Dias</th>
                             </tr>
@@ -100,20 +102,29 @@ export function ProductGrid({ products }: ProductGridProps) {
                                 <tr key={product.id} className="hover:bg-blue-50/30 transition-colors group">
                                     <td className="px-4 py-4">
                                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${product.category === 'REG' ? 'bg-yellow-100 text-yellow-700' :
-                                            product.category === 'PVD' ? 'bg-gray-100 text-gray-700' :
-                                                'bg-blue-100 text-blue-700'
+                                                product.category === 'PVD' ? 'bg-gray-100 text-gray-700' :
+                                                    'bg-blue-100 text-blue-700'
                                             }`}>
                                             {product.category}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-4">
+                                    <td className="px-4 py-4 whitespace-nowrap">
                                         <span className="bg-blue-600 text-white text-[11px] font-medium px-3 py-1 rounded-full">
                                             {product.destination}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-4">
+                                    <td className="px-4 py-4 min-w-[200px]">
                                         <div className="text-sm font-medium text-gray-900 group-hover:text-blue-700">
                                             {product.tourName}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="flex flex-wrap gap-1">
+                                            {product.subCategory?.split(',').map(tag => (
+                                                <span key={tag} className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded border border-green-100 whitespace-nowrap">
+                                                    {tag.trim()}
+                                                </span>
+                                            ))}
                                         </div>
                                     </td>
                                     <td className="px-4 py-4 text-right">
@@ -138,14 +149,23 @@ export function ProductGrid({ products }: ProductGridProps) {
                                         {product.retorno || '--:--'}
                                     </td>
                                     <td className="px-4 py-4">
-                                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100">
+                                        {product.taxasExtras ? (
+                                            <span className="text-[10px] text-orange-600 font-medium bg-orange-50 px-2 py-1 rounded border border-orange-100">
+                                                {product.taxasExtras}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-300">--</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <span className="text-xs bg-cyan-50 text-cyan-700 px-2 py-1 rounded border border-cyan-100 whitespace-nowrap">
                                             {product.temporada}
                                         </span>
                                     </td>
                                     <td className="px-4 py-4">
-                                        <div className="flex flex-wrap gap-1">
+                                        <div className="flex flex-wrap gap-1 max-w-[150px]">
                                             {product.diasElegiveis?.map(dia => (
-                                                <span key={dia} className="text-[9px] bg-pink-50 text-pink-600 px-1.5 py-0.5 rounded border border-pink-100">
+                                                <span key={dia} className="text-[9px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100">
                                                     {dia}
                                                 </span>
                                             ))}
