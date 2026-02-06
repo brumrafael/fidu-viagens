@@ -8,8 +8,14 @@ export interface AgencyProduct {
     destination: string;
     tourName: string;
     category: string;
-    basePrice: number; // Value Neto (Fidu) - Now exposed
-    consumerPrice: number; // Calculated Price
+    basePrice: number;
+    consumerPrice: number; // Final Adulto
+    consumerPriceMenor: number;
+    consumerPriceBebe: number;
+    pickup?: string;
+    retorno?: string;
+    temporada?: string;
+    diasElegiveis?: string[];
     imageUrl?: string;
 }
 
@@ -40,7 +46,7 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
 
         // Calculate Final Price
         const agencyProducts = products.map(product => {
-            const finalPrice = product.basePrice + (product.basePrice * commissionRate);
+            const calc = (base: number) => Math.round((base + (base * commissionRate)) * 100) / 100;
 
             return {
                 id: product.id,
@@ -48,7 +54,13 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
                 tourName: product.tourName,
                 category: product.category,
                 basePrice: product.basePrice,
-                consumerPrice: Math.round(finalPrice * 100) / 100,
+                consumerPrice: calc(product.priceAdulto),
+                consumerPriceMenor: calc(product.priceMenor),
+                consumerPriceBebe: calc(product.priceBebe),
+                pickup: product.pickup,
+                retorno: product.retorno,
+                temporada: product.temporada,
+                diasElegiveis: product.diasElegiveis,
                 imageUrl: product.imageUrl
             };
         });

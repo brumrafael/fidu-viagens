@@ -22,9 +22,9 @@ export default async function Portal() {
             {/* Main Content */}
             <main className="container mx-auto px-6 py-10">
                 <div className="mb-10">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Available Experiences</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Tarifário de Experiências</h1>
                     <p className="text-gray-500">
-                        Exclusive rates for our verified partners.
+                        Tarifas exclusivas para nossos parceiros verificados.
                     </p>
                 </div>
 
@@ -38,7 +38,7 @@ export default async function Portal() {
 
                 {products.length === 0 && !error && (
                     <div className="text-center py-20 text-gray-500">
-                        No products found available for your agency.
+                        Nenhum passeio encontrado para sua agência.
                     </div>
                 )}
             </main>

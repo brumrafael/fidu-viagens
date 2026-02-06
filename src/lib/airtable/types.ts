@@ -3,7 +3,14 @@ export interface Product {
     destination: string;
     tourName: string;
     category: string;
-    basePrice: number; // Value Neto (Fidu)
+    basePrice: number; // For calculations (using Adulto)
+    priceAdulto: number;
+    priceMenor: number;
+    priceBebe: number;
+    pickup?: string;
+    retorno?: string;
+    temporada?: string;
+    diasElegiveis?: string[];
     imageUrl?: string;
 }
 

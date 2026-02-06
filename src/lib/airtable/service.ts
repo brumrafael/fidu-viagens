@@ -3,26 +3,46 @@ import { Product, Agency } from './types';
 import { FieldSet } from 'airtable';
 
 // Helper to map record to Product
-const mapToProduct = (record: any): Product => ({
-    id: record.id,
-    destination: record.fields['Destination'] as string || 'General',
-    tourName: record.fields['Tour Name'] as string || 'Unnamed Tour',
-    category: record.fields['Category'] as string || 'Other',
-    basePrice: record.fields['Base Price'] as number || 0,
-    imageUrl: record.fields['Image']?.[0]?.url,
-});
+const mapToProduct = (record: any): Product => {
+    const fields = record.fields;
+    return {
+        id: record.id,
+        destination: fields['Destino'] as string || 'General',
+        tourName: fields['Atividade'] as string || 'Unnamed Tour',
+        category: fields['Categoria do Serviço'] as string || 'Other',
+        basePrice: fields['INV26 ADU'] as number || 0,
+        priceAdulto: fields['INV26 ADU'] as number || 0,
+        priceMenor: fields['INV26 CHD'] as number || 0,
+        priceBebe: fields['INV26 INF'] as number || 0,
+        pickup: fields['Pickup'] as string,
+        retorno: fields['Retorno'] as string,
+        temporada: Array.isArray(fields['Temporada']) ? fields['Temporada'].join(', ') : fields['Temporada'] as string,
+        diasElegiveis: fields['Dias elegíveis'] as string[],
+        imageUrl: fields['Mídia do Passeio']?.[0]?.url,
+    };
+};
 
 export const getProducts = async (): Promise<Product[]> => {
     const base = getProductBase();
     if (!base) {
-        console.error('Airtable base not initialized. Check your environment variables.');
+        console.error('Airtable product base not initialized.');
         return [];
     }
-    const records = await base('Products').select({
-        view: 'Grid view'
-    }).all();
 
-    return records.map(mapToProduct);
+    try {
+        // Using 'Passeios' table which contains the detailed tarifário
+        const records = await base('Passeios').select().all();
+        return records.map(mapToProduct);
+    } catch (err) {
+        console.error('Error fetching from Passeios, trying fallback Products:', err);
+        try {
+            const records = await base('Products').select().all();
+            return records.map(mapToProduct);
+        } catch (innerErr) {
+            console.error('Total failure fetching products:', innerErr);
+            return [];
+        }
+    }
 };
 
 export const getAgencyByEmail = async (email: string): Promise<Agency | null> => {
