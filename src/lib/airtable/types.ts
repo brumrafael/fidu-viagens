@@ -13,6 +13,10 @@ export interface Product {
     diasElegiveis?: string[];
     subCategory?: string; // Column 'Categoria' in Airtable
     taxasExtras?: string; // Column 'Taxas Extras?' in Airtable
+    description?: string; // Column 'Descrição'
+    inclusions?: string; // Column 'Incluso'
+    exclusions?: string; // Column 'Não Incluso'
+    requirements?: string; // Column 'Requisitos'
     imageUrl?: string;
 }
 

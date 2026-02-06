@@ -30,6 +30,10 @@ export interface AgencyProduct {
     diasElegiveis?: string[];
     subCategory?: string;
     taxasExtras?: string;
+    description?: string;
+    inclusions?: string;
+    exclusions?: string;
+    requirements?: string;
     imageUrl?: string;
 }
 
@@ -89,6 +93,10 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
                 diasElegiveis: product.diasElegiveis,
                 subCategory: product.subCategory,
                 taxasExtras: product.taxasExtras,
+                description: product.description,
+                inclusions: product.inclusions,
+                exclusions: product.exclusions,
+                requirements: product.requirements,
                 imageUrl: product.imageUrl
             };
         });

@@ -29,6 +29,10 @@ const mapToProduct = (record: any): Product => {
         retorno: formatDuration(fields['Retorno']),
         temporada: Array.isArray(fields['Temporada']) ? fields['Temporada'].join(', ') : fields['Temporada'] as string,
         diasElegiveis: fields['Dias elegíveis'] as string[],
+        description: fields['Descrição'] as string,
+        inclusions: fields['Incluso'] as string,
+        exclusions: fields['Não Incluso'] as string,
+        requirements: fields['Requisitos'] as string,
         imageUrl: fields['Mídia do Passeio']?.[0]?.url,
     };
 };
