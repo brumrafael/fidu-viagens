@@ -4,7 +4,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 // For this B2B app, almost everything should be protected.
 const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);
 
-export default clerkMiddleware(async (auth, request) => {
+export const proxy = clerkMiddleware(async (auth, request) => {
     // Basic check to avoid crashes during build if keys are missing
     if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
         return;
