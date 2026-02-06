@@ -56,13 +56,13 @@ export function ProductCard({ product }: ProductCardProps) {
                         <div>
                             <span className="text-xs text-blue-600 font-medium block">Neto (Seu Custo)</span>
                             <div className="text-sm font-semibold text-gray-700">
-                                R$ {product.basePrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                R$ {product.netoPriceAdulto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
                         </div>
                         <div>
                             <span className="text-xs text-gray-400 font-medium block">Sugestão Venda</span>
                             <div className="text-2xl font-bold text-gray-900">
-                                R$ {product.consumerPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                R$ {product.salePriceAdulto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
                         </div>
                     </div>
