@@ -34,16 +34,11 @@ export function ProductGrid({ products }: ProductGridProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('REG');
     const [destinationFilter, setDestinationFilter] = useState('all');
-    const [seasonFilter, setSeasonFilter] = useState('all');
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'tourName', direction: 'asc' });
 
     // Extract unique filters
     const categories = useMemo(() => Array.from(new Set(products.map(p => p.category))).sort(), [products]);
     const destinations = useMemo(() => Array.from(new Set(products.map(p => p.destination))).sort(), [products]);
-    const seasons = useMemo(() => {
-        const allSeasons = products.map(p => p.temporada).filter(Boolean) as string[];
-        return Array.from(new Set(allSeasons)).sort();
-    }, [products]);
 
     const requestSort = (key: keyof AgencyProduct) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -61,9 +56,8 @@ export function ProductGrid({ products }: ProductGridProps) {
                 (product.destination?.toLowerCase() || '').includes(searchTerm.toLowerCase());
             const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
             const matchesDestination = destinationFilter === 'all' || product.destination === destinationFilter;
-            const matchesSeason = seasonFilter === 'all' || product.temporada === seasonFilter;
 
-            return matchesSearch && matchesCategory && matchesDestination && matchesSeason;
+            return matchesSearch && matchesCategory && matchesDestination;
         });
 
         if (sortConfig.key) {
@@ -85,7 +79,7 @@ export function ProductGrid({ products }: ProductGridProps) {
         }
 
         return result;
-    }, [products, searchTerm, categoryFilter, destinationFilter, seasonFilter, sortConfig]);
+    }, [products, searchTerm, categoryFilter, destinationFilter, sortConfig]);
 
     const formatPrice = (price: number) => {
         return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
@@ -132,18 +126,6 @@ export function ProductGrid({ products }: ProductGridProps) {
                             <SelectItem value="all">Todos os Serviços</SelectItem>
                             {categories.map(cat => (
                                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={seasonFilter} onValueChange={setSeasonFilter}>
-                        <SelectTrigger className="flex-1 lg:w-40 border-gray-200 rounded-lg">
-                            <SelectValue placeholder="Temporada" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas as Temporadas</SelectItem>
-                            {seasons.map(s => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -194,12 +176,7 @@ export function ProductGrid({ products }: ProductGridProps) {
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight">Pickup</th>
                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight">Retorno</th>
-                                <th
-                                    className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight cursor-pointer hover:bg-gray-100 transition-colors"
-                                    onClick={() => requestSort('temporada')}
-                                >
-                                    <div className="flex items-center">Temporada <SortIcon columnKey="temporada" /></div>
-                                </th>
+                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight">Temporada</th>
                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight">Dias</th>
                             </tr>
                         </thead>
