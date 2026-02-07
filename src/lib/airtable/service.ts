@@ -123,17 +123,56 @@ export async function getMuralItems(): Promise<MuralItem[]> {
 export async function markAsRead(muralId: string, userEmail: string, userName: string, agencyId: string): Promise<void> {
     const base = getProductBase();
     if (!base) return;
-    await base('MuralReadLog').create([
-        {
-            fields: {
-                'Mural': [muralId],
-                'UserEmail': userEmail,
-                'UserName': userName,
-                'AgencyId': agencyId,
-                'Timestamp': new Date().toISOString()
+
+    // 1. Try to record in MuralReadLog (detailed log)
+    try {
+        await base('MuralReadLog').create([
+            {
+                fields: {
+                    'Mural': [muralId],
+                    'UserEmail': userEmail,
+                    'UserName': userName,
+                    'AgencyId': agencyId,
+                    'Timestamp': new Date().toISOString()
+                }
+            }
+        ]);
+    } catch (e) {
+        console.warn('MuralReadLog table may be missing or inaccessible:', e);
+    }
+
+    // 2. Update the "Lido" field in '◉ No ar!' table as requested
+    try {
+        const record = await base('◉ No ar!').find(muralId);
+        const currentLido = record.fields['Lido'] as any[] || [];
+
+        // Check if it looks like a collaborator field (objects with id/email) or simple list
+        const isCollaboratorField = currentLido.length > 0 && typeof currentLido[0] === 'object';
+
+        let newValue;
+        if (isCollaboratorField) {
+            // Add as collaborator object
+            const alreadyExists = currentLido.some(c => c.email === userEmail);
+            if (!alreadyExists) {
+                newValue = [...currentLido, { email: userEmail }];
+            }
+        } else {
+            // Add as simple string/select
+            const alreadyExists = currentLido.some(c => c === userName || c === userEmail);
+            if (!alreadyExists) {
+                newValue = [...currentLido, userName];
             }
         }
-    ]);
+
+        if (newValue) {
+            await base('◉ No ar!').update(muralId, {
+                'Lido': newValue
+            });
+        }
+    } catch (e) {
+        console.error('Error updating Lido field in ◉ No ar!:', e);
+        // Fallback: try updating as single string if array fails, or just catch
+    }
 }
 
 export async function getMuralReaders(muralId: string, agencyId?: string): Promise<{ userName: string, timestamp: string }[]> {
@@ -145,13 +184,18 @@ export async function getMuralReaders(muralId: string, agencyId?: string): Promi
         filter = `AND({Mural} = '${muralId}', {AgencyId} = '${agencyId}')`;
     }
 
-    const records = await base('MuralReadLog').select({
-        filterByFormula: filter,
-        sort: [{ field: 'Timestamp', direction: 'desc' }]
-    }).all();
+    try {
+        const records = await base('MuralReadLog').select({
+            filterByFormula: filter,
+            sort: [{ field: 'Timestamp', direction: 'desc' }]
+        }).all();
 
-    return records.map((record: any) => ({
-        userName: record.fields['UserName'] as string,
-        timestamp: record.fields['Timestamp'] as string
-    }));
+        return records.map((record: any) => ({
+            userName: record.fields['UserName'] as string,
+            timestamp: record.fields['Timestamp'] as string
+        }));
+    } catch (e) {
+        console.warn('Error fetching from MuralReadLog:', e);
+        return [];
+    }
 }

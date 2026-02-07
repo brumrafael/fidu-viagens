@@ -145,9 +145,9 @@ export async function markMuralAsReadAction(muralId: string): Promise<{ success:
 
         await markAsRead(muralId, email, userName, agency.id);
         return { success: true };
-    } catch (e) {
+    } catch (e: any) {
         console.error('Error marking mural as read:', e);
-        return { success: false, error: 'Erro ao confirmar leitura.' };
+        return { success: false, error: e.message || 'Erro ao confirmar leitura.' };
     }
 }
 
