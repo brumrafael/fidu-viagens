@@ -14,8 +14,31 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fidu Viagens | Partner Portal",
-  description: "Exclusive portal for Fidu Viagens partners",
+  metadataBase: new URL("https://parceiros.fiduviagens.com"),
+  title: "Fidu Viagens Partner: Operador Local",
+  description: "Portal exclusivo para parceiros e operadores locais da Fidu Viagens.",
+  openGraph: {
+    title: "Fidu Viagens Partner: Operador Local",
+    description: "Acesse o portal exclusivo para parceiros.",
+    url: "https://parceiros.fiduviagens.com",
+    siteName: "Fidu Viagens",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Fidu Viagens Partner Portal",
+      },
+    ],
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Fidu Viagens Partner: Operador Local",
+    description: "Portal exclusivo para parceiros e operadores locais.",
+    images: ["/opengraph-image.png"],
+  },
 };
 
 export default function RootLayout({
