@@ -15,21 +15,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calculator, MessageCircle, Calendar, User, CheckCircle2, Copy, Loader2, ArrowRight, Trash2, Plus, ShoppingCart } from 'lucide-react';
+import { Calculator, MessageCircle, Calendar, User, CheckCircle2, Copy, Loader2, ArrowRight, Trash2, Plus, ShoppingCart, Users } from 'lucide-react';
+import { SimulatedProduct } from './ProductGrid';
 
 interface SalesSimulatorProps {
-    selectedProducts: AgencyProduct[];
+    selectedProducts: SimulatedProduct[];
+    onUpdatePax: (productId: string, field: 'adults' | 'children' | 'infants', value: number) => void;
     onRemoveProduct: (productId: string) => void;
     isOpen: boolean;
     onClose: () => void;
     agencyInfo?: AgencyInfo;
 }
 
-export function SalesSimulator({ selectedProducts, onRemoveProduct, isOpen, onClose, agencyInfo }: SalesSimulatorProps) {
+export function SalesSimulator({ selectedProducts, onUpdatePax, onRemoveProduct, isOpen, onClose, agencyInfo }: SalesSimulatorProps) {
     const [step, setStep] = useState<'simulate' | 'reserve'>('simulate');
-    const [adults, setAdults] = useState(1);
-    const [children, setChildren] = useState(0);
-    const [infants, setInfants] = useState(0);
 
     // Reservation fields
     const [clientName, setClientName] = useState('');
@@ -44,15 +43,15 @@ export function SalesSimulator({ selectedProducts, onRemoveProduct, isOpen, onCl
 
         let total = 0;
         selectedProducts.forEach(product => {
-            total += (adults * product.salePriceAdulto) +
-                (children * product.salePriceMenor) +
-                (infants * product.salePriceBebe);
+            total += (product.adults * product.salePriceAdulto) +
+                (product.children * product.salePriceMenor) +
+                (product.infants * product.salePriceBebe);
         });
 
         const commission = total * commissionRate;
 
         return { total, commission };
-    }, [selectedProducts, adults, children, infants, commissionRate]);
+    }, [selectedProducts, commissionRate]);
 
     const formatPrice = (price: number) => {
         return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -61,11 +60,13 @@ export function SalesSimulator({ selectedProducts, onRemoveProduct, isOpen, onCl
     const handleCopySummary = () => {
         if (selectedProducts.length === 0) return;
 
-        let productsList = selectedProducts.map((p, i) => `${i + 1}. ${p.tourName} (${p.destination})`).join('\n');
+        let productsList = selectedProducts.map((p, i) => {
+            const paxStr = `${p.adults} ADU${p.children > 0 ? `, ${p.children} CHD` : ''}${p.infants > 0 ? `, ${p.infants} INF` : ''}`;
+            return `${i + 1}. ${p.tourName} [${paxStr}]`;
+        }).join('\n');
 
         const summary = `*Resumo da Experiência - Fidu Viagens*\n\n` +
             `*Passeios Selecionados:*\n${productsList}\n\n` +
-            `*Passageiros:* ${adults} Adulto(s)${children > 0 ? `, ${children} Criança(s)` : ''}${infants > 0 ? `, ${infants} Bebê(s)` : ''}\n\n` +
             `*Valor Total Consolidado:* ${formatPrice(totals.total)}\n\n` +
             `_Reservas sujeitas a disponibilidade._`;
 
@@ -81,17 +82,21 @@ export function SalesSimulator({ selectedProducts, onRemoveProduct, isOpen, onCl
 
         setIsSubmitting(true);
         try {
-            // Join all product names for the reservation record
-            const productNames = selectedProducts.map(p => p.tourName).join(', ');
+            // Join all details for the reservation record
+            const details = selectedProducts.map(p => {
+                const paxStr = `${p.adults} ADU${p.children > 0 ? `, ${p.children} CHD` : ''}${p.infants > 0 ? `, ${p.infants} INF` : ''}`;
+                return `${p.tourName} (${paxStr})`;
+            }).join(' | ');
+
             const mainDestination = selectedProducts[0].destination;
 
             const result = await createReservationAction({
-                productName: productNames,
+                productName: details, // Saving detailed list in the productName field for now
                 destination: mainDestination,
                 date: tourDate,
-                adults,
-                children,
-                infants,
+                adults: selectedProducts.reduce((sum, p) => sum + p.adults, 0),
+                children: selectedProducts.reduce((sum, p) => sum + p.children, 0),
+                infants: selectedProducts.reduce((sum, p) => sum + p.infants, 0),
                 paxNames: `${clientName}${paxNames ? `\n\nOutros: ${paxNames}` : ''}`,
                 totalAmount: totals.total,
                 commissionAmount: totals.commission
@@ -123,87 +128,89 @@ export function SalesSimulator({ selectedProducts, onRemoveProduct, isOpen, onCl
                     <SheetDescription>
                         {selectedProducts.length === 0
                             ? 'Selecione passeios no tarifário para simular'
-                            : `${selectedProducts.length} passeio(s) selecionado(s)`}
+                            : `${selectedProducts.length} passeio(s) com quantidades individuais`}
                     </SheetDescription>
                 </SheetHeader>
 
                 {step === 'simulate' ? (
                     <div className="space-y-6">
                         {/* Selected Products List */}
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Itens na Simulação</Label>
+                        <div className="space-y-4">
+                            <Label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Itens e Quantidades</Label>
                             {selectedProducts.length === 0 ? (
                                 <div className="p-8 text-center border-2 border-dashed border-gray-100 rounded-xl text-gray-400 text-sm">
                                     Nenhum passeio adicionado.
                                 </div>
                             ) : (
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     {selectedProducts.map((p) => (
-                                        <div key={p.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm group">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-gray-900 leading-tight">{p.tourName}</span>
-                                                <span className="text-[10px] text-gray-500 uppercase font-medium">{p.destination}</span>
+                                        <div key={p.id} className="p-5 bg-white border border-gray-100 rounded-2xl shadow-sm space-y-4 group">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-gray-900 leading-tight">{p.tourName}</span>
+                                                    <span className="text-[10px] text-gray-500 uppercase font-medium">{p.destination}</span>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all focus:outline-none"
+                                                    onClick={() => onRemoveProduct(p.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                                onClick={() => onRemoveProduct(p.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+
+                                            {/* PAX Selectors for this specific product */}
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] text-gray-400 uppercase">Adu</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        value={p.adults}
+                                                        onChange={(e) => onUpdatePax(p.id, 'adults', parseInt(e.target.value) || 0)}
+                                                        className="h-8 text-xs border-gray-100 bg-gray-50/50"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] text-gray-400 uppercase">Chd</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        value={p.children}
+                                                        onChange={(e) => onUpdatePax(p.id, 'children', parseInt(e.target.value) || 0)}
+                                                        className="h-8 text-xs border-gray-100 bg-gray-50/50"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] text-gray-400 uppercase">Inf</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        value={p.infants}
+                                                        onChange={(e) => onUpdatePax(p.id, 'infants', parseInt(e.target.value) || 0)}
+                                                        className="h-8 text-xs border-gray-100 bg-gray-50/50"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
 
-                        {/* PAX Selectors */}
-                        <div className="grid grid-cols-3 gap-6 pt-4">
-                            <div className="space-y-2">
-                                <Label>Adultos</Label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    value={adults}
-                                    onChange={(e) => setAdults(parseInt(e.target.value) || 0)}
-                                    className="border-gray-200"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Crianças</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    value={children}
-                                    onChange={(e) => setChildren(parseInt(e.target.value) || 0)}
-                                    className="border-gray-200"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Bebês</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    value={infants}
-                                    onChange={(e) => setInfants(parseInt(e.target.value) || 0)}
-                                    className="border-gray-200"
-                                />
-                            </div>
-                        </div>
-
                         {/* Calculation Summary */}
                         <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 space-y-5">
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-500 text-sm font-medium">Total do Grupo</span>
+                                <span className="text-gray-500 text-sm font-medium">Total Consolidado</span>
                                 <span className="text-xl font-bold text-gray-900">{formatPrice(totals.total)}</span>
                             </div>
 
                             {!agencyInfo?.isInternal && (
                                 <div className="flex justify-between items-center pt-4 border-t border-gray-200/50">
                                     <div className="flex flex-col">
-                                        <span className="text-gray-500 text-xs uppercase font-bold tracking-wider">Sua Comissão Total</span>
-                                        <span className="text-blue-600 text-[10px] font-medium">Base: {(commissionRate * 100).toFixed(0)}% sobre venda</span>
+                                        <span className="text-gray-500 text-xs uppercase font-bold tracking-wider">Comissão Total</span>
+                                        <span className="text-blue-600 text-[10px] font-medium">Base: {(commissionRate * 100).toFixed(0)}%</span>
                                     </div>
                                     <span className="text-lg font-bold text-blue-600 font-mono">{formatPrice(totals.commission)}</span>
                                 </div>
@@ -231,17 +238,13 @@ export function SalesSimulator({ selectedProducts, onRemoveProduct, isOpen, onCl
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             )}
-
-                            <p className="text-[10px] text-gray-400 text-center italic">
-                                Você pode adicionar mais itens clicando no tarifário com este painel aberto.
-                            </p>
                         </div>
                     </div>
                 ) : (
                     <div className="space-y-8">
                         <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 mb-6">
                             <p className="text-[13px] text-blue-700 font-medium leading-relaxed">
-                                Consolidação: {selectedProducts.length} itens | {adults} ADU, {children} CHD, {infants} INF | Total: {formatPrice(totals.total)}
+                                Consolidação de {selectedProducts.length} atividades | Total: {formatPrice(totals.total)}
                             </p>
                         </div>
 

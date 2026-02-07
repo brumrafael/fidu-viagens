@@ -9,6 +9,12 @@ import { SalesSimulator } from './SalesSimulator';
 import { AgencyInfo } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 
+export interface SimulatedProduct extends AgencyProduct {
+    adults: number;
+    children: number;
+    infants: number;
+}
+
 interface ProductGridProps {
     products: AgencyProduct[];
     isInternal?: boolean;
@@ -42,7 +48,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'tourName', direction: 'asc' });
 
     // Simulator State
-    const [selectedProducts, setSelectedProducts] = useState<AgencyProduct[]>([]);
+    const [selectedProducts, setSelectedProducts] = useState<SimulatedProduct[]>([]);
     const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
 
     // Extract unique filters
@@ -60,9 +66,15 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
     const handleProductClick = (product: AgencyProduct) => {
         setSelectedProducts(prev => {
             if (prev.find(p => p.id === product.id)) return prev;
-            return [...prev, product];
+            return [...prev, { ...product, adults: 1, children: 0, infants: 0 }];
         });
         setIsSimulatorOpen(true);
+    };
+
+    const handleUpdatePax = (productId: string, field: 'adults' | 'children' | 'infants', value: number) => {
+        setSelectedProducts(prev => prev.map(p =>
+            p.id === productId ? { ...p, [field]: value } : p
+        ));
     };
 
     const handleRemoveProduct = (productId: string) => {
@@ -318,6 +330,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
 
             <SalesSimulator
                 selectedProducts={selectedProducts}
+                onUpdatePax={handleUpdatePax}
                 onRemoveProduct={handleRemoveProduct}
                 isOpen={isSimulatorOpen}
                 onClose={() => setIsSimulatorOpen(false)}
