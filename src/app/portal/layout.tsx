@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     description: "Gerencie suas reservas e produtos exclusivos.",
     openGraph: {
         title: "Portal do Parceiro | Fidu Viagens",
-        description: "Acesso restrito a agências e operadores.",
+        description: "Acesso exclusivo a agências e operadores.",
     }
 };
 
