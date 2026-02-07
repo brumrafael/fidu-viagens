@@ -75,10 +75,17 @@ export const getAgencyByEmail = async (email: string): Promise<Agency | null> =>
     if (records.length === 0) return null;
 
     const record = records[0];
+    const agencyNameField = record.fields['Agency'];
+    const agentNameField = record.fields['Name'];
+
+    // Handle both string and lookup/array values
+    const agencyName = (Array.isArray(agencyNameField) ? agencyNameField[0] : agencyNameField) as string;
+    const agentName = (Array.isArray(agentNameField) ? agentNameField[0] : agentNameField) as string;
+
     return {
         id: record.id,
-        name: record.fields['Agency'] as string,
-        agentName: record.fields['Name'] as string,
+        name: agencyName || agentName || 'Agente',
+        agentName: agentName,
         email: record.fields['mail'] as string,
         commissionRate: record.fields['Comision_base'] as number || 0,
         skills: record.fields['Skill'] as string[] || [],
@@ -276,19 +283,28 @@ export async function getMuralReaders(muralId: string, agencyId?: string, corpor
         const lidoIds = muralRecord.fields['Lido'] as string[] || [];
         if (lidoIds.length === 0) return [];
 
-        // 2. Fetch those users from the 'Access' table (tblkVI2PX3jPgYKXF)
-        // Note: Filter by the list of IDs and by the corporation (Agency) name
+        // 2. Fetch those users from the 'Access' table
+        // Note: Filter by IDs and then filter by agency name in JS for maximum robustness
         const records = await agencyBase('tblkVI2PX3jPgYKXF').select({
-            filterByFormula: `AND(
-                OR(${lidoIds.map(id => `RECORD_ID() = '${id}'`).join(', ')}),
-                {Agency} = '${corporationName}'
-            )`
+            filterByFormula: `OR(${lidoIds.map(id => `RECORD_ID() = '${id}'`).join(', ')})`
         }).all();
 
-        return records.map((record: any) => ({
-            userName: record.fields['Name'] as string || record.fields['Agency'] as string,
-            timestamp: new Date().toISOString() // We don't have per-user timestamp in the linked field, use now
-        }));
+        return records
+            .filter((record: any) => {
+                const agencyValue = record.fields['Agency'];
+                const recordAgencyName = (Array.isArray(agencyValue) ? agencyValue[0] : agencyValue) as string;
+                return recordAgencyName === corporationName;
+            })
+            .map((record: any) => {
+                const nameValue = record.fields['Name'];
+                const agencyValue = record.fields['Agency'];
+                return {
+                    userName: (Array.isArray(nameValue) ? nameValue[0] : nameValue) as string ||
+                        (Array.isArray(agencyValue) ? agencyValue[0] : agencyValue) as string ||
+                        'Usuário',
+                    timestamp: new Date().toISOString()
+                };
+            });
     } catch (e) {
         console.warn('Error fetching Mural readers via linked records:', e);
 
