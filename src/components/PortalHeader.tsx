@@ -21,8 +21,9 @@ export function PortalHeader({ agency }: PortalHeaderProps) {
         <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
             <div className="container mx-auto px-6 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-8">
-                    <Link href="/portal" className="font-bold text-xl tracking-tight hover:opacity-80 transition-opacity" style={{ color: '#3b5998' }}>
+                    <Link href="/portal" className="font-bold text-xl tracking-tight hover:opacity-80 transition-opacity flex items-baseline" style={{ color: '#3b5998' }}>
                         Fidu<span className="text-gray-900">Viagens</span>
+                        <span className="ml-2 text-[13px] font-medium text-gray-400 uppercase tracking-wider">Partner</span>
                     </Link>
 
                     <nav className="hidden md:flex items-center gap-1 border-l pl-6 ml-2">
