@@ -1,5 +1,5 @@
 import { getProductBase, getAgencyBase } from './client';
-import { Product, Agency, MuralItem, MuralReadLog } from './types';
+import { Product, Agency, MuralItem, MuralReadLog, Reservation } from './types';
 import { FieldSet } from 'airtable';
 
 // Helper to map record to Product
@@ -358,5 +358,31 @@ export async function getMuralReaders(muralId: string, agencyId?: string, corpor
     } catch (e: any) {
         console.error('❌ Error fetching Mural readers:', e.message);
         return [];
+    }
+}
+
+export async function createReservation(reservation: Reservation): Promise<string> {
+    const base = getAgencyBase();
+    if (!base) throw new Error('Agency base not initialized');
+
+    try {
+        const record = await base('Reservas').create({
+            'Passeio': reservation.productName,
+            'Destino': reservation.destination,
+            'Agente': reservation.agentName,
+            'Email': reservation.agentEmail,
+            'Data': reservation.date,
+            'Adultos': reservation.adults,
+            'Crianças': reservation.children,
+            'Bebês': reservation.infants,
+            'Nomes Pax': reservation.paxNames,
+            'Valor Total': reservation.totalAmount,
+            'Comissão': reservation.commissionAmount,
+            'Status': reservation.status
+        });
+        return record.id;
+    } catch (e: any) {
+        console.error('Error creating reservation in Airtable:', e.message);
+        throw new Error(`Failed to create reservation: ${e.message}`);
     }
 }

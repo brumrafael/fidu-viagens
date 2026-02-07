@@ -19,7 +19,18 @@ export default async function Portal() {
                     {error}
                 </div>
             ) : (
-                <ProductGrid products={products} isInternal={agency?.isInternal} />
+                <ProductGrid
+                    products={products}
+                    isInternal={agency?.isInternal}
+                    agencyInfo={agency ? {
+                        agentName: agency.agentName || '',
+                        agencyName: agency.agencyName || '',
+                        commissionRate: agency.commissionRate || 0,
+                        canReserve: !!agency.canReserve,
+                        canAccessMural: !!agency.canAccessMural,
+                        isInternal: !!agency.isInternal
+                    } : undefined}
+                />
             )}
 
             {products.length === 0 && !error && (

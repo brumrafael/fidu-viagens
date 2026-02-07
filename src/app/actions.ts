@@ -1,7 +1,7 @@
 'use server'
 
 import { currentUser } from '@clerk/nextjs/server';
-import { getProducts, getAgencyByEmail, getMuralItems, markAsRead, getMuralReaders } from '@/lib/airtable/service';
+import { getProducts, getAgencyByEmail, getMuralItems, markAsRead, getMuralReaders, createReservation } from '@/lib/airtable/service';
 
 export interface AgencyInfo {
     agentName: string;
@@ -12,7 +12,7 @@ export interface AgencyInfo {
     isInternal: boolean;
 }
 
-import { AgencyProduct, MuralItem } from '@/lib/airtable/types';
+import { AgencyProduct, MuralItem, Reservation } from '@/lib/airtable/types';
 
 export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], agency?: AgencyInfo, hasUnreadMural?: boolean, error?: string }> {
     try {
@@ -201,5 +201,32 @@ export async function fetchMuralReaders(muralId: string): Promise<{ readers: { u
     } catch (e) {
         console.error('Error fetching mural readers:', e);
         return { readers: [], error: 'Erro ao carregar lista de leitura.' };
+    }
+}
+
+export async function createReservationAction(data: Omit<Reservation, 'agentName' | 'agentEmail' | 'status'>): Promise<{ success: boolean, id?: string, error?: string }> {
+    try {
+        const user = await currentUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const email = user.emailAddresses[0]?.emailAddress;
+        if (!email) throw new Error('No email found');
+
+        const agency = await getAgencyByEmail(email);
+        if (!agency) throw new Error('Agency not found');
+
+        const agentName = agency.agentName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Agente';
+
+        const reservationId = await createReservation({
+            ...data,
+            agentName,
+            agentEmail: email,
+            status: 'Pré-reserva'
+        });
+
+        return { success: true, id: reservationId };
+    } catch (e: any) {
+        console.error('Error in createReservationAction:', e);
+        return { success: false, error: e.message || 'Erro ao criar reserva.' };
     }
 }

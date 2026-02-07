@@ -4,11 +4,14 @@ import { AgencyProduct } from '@/lib/airtable/types';
 import { useState, useMemo, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Info, Clock, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Info, Clock, Calendar, CheckCircle2, AlertCircle, ShoppingCart, ArrowUpDown, ChevronUp, ChevronDown, Calculator } from 'lucide-react';
+import { SalesSimulator } from './SalesSimulator';
+import { AgencyInfo } from '@/app/actions';
 
 interface ProductGridProps {
     products: AgencyProduct[];
     isInternal?: boolean;
+    agencyInfo?: AgencyInfo;
 }
 
 type SortConfig = {
@@ -31,11 +34,15 @@ const getDestinationColor = (dest: string) => {
     return DESTINATION_COLORS[key] || '#95a5a6'; // Default silver/gray
 };
 
-export function ProductGrid({ products, isInternal }: ProductGridProps) {
+export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('REG');
     const [destinationFilter, setDestinationFilter] = useState('all');
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'tourName', direction: 'asc' });
+
+    // Simulator State
+    const [selectedProduct, setSelectedProduct] = useState<AgencyProduct | null>(null);
+    const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
 
     // Extract unique filters
     const categories = useMemo(() => Array.from(new Set(products.map(p => p.category))).sort(), [products]);
@@ -183,7 +190,14 @@ export function ProductGrid({ products, isInternal }: ProductGridProps) {
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {filteredProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-blue-50/30 transition-colors group">
+                                <tr
+                                    key={product.id}
+                                    className="hover:bg-blue-50/30 transition-colors group cursor-pointer"
+                                    onClick={() => {
+                                        setSelectedProduct(product);
+                                        setIsSimulatorOpen(true);
+                                    }}
+                                >
                                     <td className="px-4 py-4">
                                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${product.category === 'REG' ? 'bg-yellow-100 text-yellow-700' :
                                             product.category === 'PVD' ? 'bg-gray-100 text-gray-700' :
@@ -258,6 +272,13 @@ export function ProductGrid({ products, isInternal }: ProductGridProps) {
                     </div>
                 )}
             </div>
+
+            <SalesSimulator
+                product={selectedProduct}
+                isOpen={isSimulatorOpen}
+                onClose={() => setIsSimulatorOpen(false)}
+                agencyInfo={agencyInfo}
+            />
         </div>
     );
 }

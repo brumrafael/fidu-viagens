@@ -59,3 +59,19 @@ export interface MuralReadLog {
     agencyId: string;
     timestamp: string;
 }
+export interface Reservation {
+    id?: string;
+    productName: string;
+    destination: string;
+    agentName: string;
+    agentEmail: string;
+    date: string;
+    adults: number;
+    children: number;
+    infants: number;
+    paxNames: string;
+    totalAmount: number;
+    commissionAmount: number;
+    status: 'Pré-reserva' | 'Confirmada' | 'Cancelada';
+    timestamp?: string;
+}
