@@ -46,6 +46,7 @@ export interface MuralItem {
     title: string;
     details: string;
     isNew: boolean;
+    isRead: boolean;
 }
 
 export interface MuralReadLog {

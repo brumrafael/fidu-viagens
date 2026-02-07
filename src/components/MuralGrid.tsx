@@ -59,23 +59,29 @@ export function MuralGrid({ items }: MuralGridProps) {
                             {filteredItems.map((item) => (
                                 <tr
                                     key={item.id}
-                                    className="hover:bg-gray-50/50 transition-colors cursor-pointer group"
+                                    className={`hover:bg-gray-100/80 transition-colors cursor-pointer group ${!item.isRead ? 'bg-blue-50/50' : 'bg-white'
+                                        }`}
                                     onClick={() => setSelectedItem(item)}
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex flex-col">
-                                            {item.isNew && (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-pink-100 text-pink-600 uppercase mb-1 w-fit">
-                                                    Novo!
-                                                </span>
-                                            )}
+                                            <div className="flex items-center gap-2 mb-1">
+                                                {!item.isRead && (
+                                                    <div className="w-2 h-2 rounded-full bg-[#3b5998] animate-pulse" title="Não lido" />
+                                                )}
+                                                {item.isNew && (
+                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-pink-100 text-pink-600 uppercase w-fit">
+                                                        Novo!
+                                                    </span>
+                                                )}
+                                            </div>
                                             <span className="text-gray-600 text-[13px] font-medium">{formatDate(item.date)}</span>
                                         </div>
                                     </td>
                                     <td className="px-4 py-4 whitespace-nowrap">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.category === 'Atualização de Valores'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-purple-100 text-purple-700'
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-purple-100 text-purple-700'
                                             }`}>
                                             {item.category}
                                         </span>

@@ -122,7 +122,11 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
 
 export async function fetchMural(): Promise<{ items: MuralItem[], error?: string }> {
     try {
-        const items = await getMuralItems();
+        const user = await currentUser();
+        const email = user?.emailAddresses[0]?.emailAddress;
+        const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined;
+
+        const items = await getMuralItems(email, userName);
         return { items };
     } catch (e: any) {
         console.error('Error fetching mural:', e);

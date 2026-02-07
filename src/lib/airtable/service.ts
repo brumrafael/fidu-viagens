@@ -103,7 +103,7 @@ export const createAgency = async (agency: Omit<Agency, 'id'>) => {
     ]);
 };
 
-export async function getMuralItems(): Promise<MuralItem[]> {
+export async function getMuralItems(userEmail?: string, userName?: string): Promise<MuralItem[]> {
     const base = getProductBase();
     if (!base) return [];
 
@@ -134,7 +134,7 @@ export async function getMuralItems(): Promise<MuralItem[]> {
         const fields = record.fields;
 
         // Use 'Select' field for IsNew if 'IsNew' is missing, matching screenshot
-        const isNew = fields['IsNew'] === true || fields['Select'] === 'Novo!';
+        const isNew = fields['Select'] === 'Novo!' || fields['IsNew'] === true;
 
         // Flexible field mapping based on common names and screenshot
         const title = fields['Título'] || fields['Aviso'] || fields['Title'] || 'Sem título';
@@ -142,13 +142,26 @@ export async function getMuralItems(): Promise<MuralItem[]> {
         const date = fields['Data'] || fields['Date'] || new Date().toISOString();
         const category = fields['Categoria'] || fields['Category'] || 'Geral';
 
+        // Check if read by current user
+        const lidoField = fields['Lido'] as any[] || [];
+        const isRead = lidoField.some(reader => {
+            if (typeof reader === 'string') {
+                return reader === userName || reader === userEmail;
+            }
+            if (typeof reader === 'object' && reader.email) {
+                return reader.email === userEmail;
+            }
+            return false;
+        });
+
         return {
             id: record.id,
             date: date as string,
             category: category as string,
             title: title as string,
             details: details as string,
-            isNew: !!isNew
+            isNew: !!isNew,
+            isRead: !!isRead
         };
     });
 }
@@ -174,37 +187,50 @@ export async function markAsRead(muralId: string, userEmail: string, userName: s
         console.warn('MuralReadLog table may be missing or inaccessible:', e);
     }
 
-    // 2. Update the "Lido" field in '◉ No ar!' table as requested
-    try {
-        const record = await base('◉ No ar!').find(muralId);
-        const currentLido = record.fields['Lido'] as any[] || [];
+    // 2. Update the "Lido" field in '◉ No ar!' or 'Mural' table
+    const tablesToTry = ['◉ No ar!', 'Mural'];
 
-        // Check if it looks like a collaborator field (objects with id/email) or simple list
-        const isCollaboratorField = currentLido.length > 0 && typeof currentLido[0] === 'object';
+    for (const tableName of tablesToTry) {
+        try {
+            const record = await base(tableName).find(muralId);
+            if (!record) continue;
 
-        let newValue;
-        if (isCollaboratorField) {
-            // Add as collaborator object
-            const alreadyExists = currentLido.some(c => c.email === userEmail);
-            if (!alreadyExists) {
-                newValue = [...currentLido, { email: userEmail }];
+            const fields = record.fields;
+            const currentLido = fields['Lido'] as any[] || [];
+
+            // Check if it looks like a collaborator field (objects with id/email) or simple list
+            const isCollaboratorField = currentLido.length > 0 && typeof currentLido[0] === 'object';
+
+            let newValue;
+            if (isCollaboratorField) {
+                // Add as collaborator object
+                const alreadyExists = currentLido.some(c => c.email === userEmail || c.name === userName);
+                if (!alreadyExists) {
+                    newValue = [...currentLido, { email: userEmail }];
+                }
+            } else {
+                // Add as simple string/select/multiselect
+                // We compare against both email and name for safety
+                const alreadyExists = currentLido.some(c =>
+                    typeof c === 'string' && (c.toLowerCase() === userName.toLowerCase() || c.toLowerCase() === userEmail.toLowerCase())
+                );
+                if (!alreadyExists) {
+                    newValue = [...currentLido, userName];
+                }
             }
-        } else {
-            // Add as simple string/select
-            const alreadyExists = currentLido.some(c => c === userName || c === userEmail);
-            if (!alreadyExists) {
-                newValue = [...currentLido, userName];
-            }
-        }
 
-        if (newValue) {
-            await base('◉ No ar!').update(muralId, {
-                'Lido': newValue
-            });
+            if (newValue) {
+                await base(tableName).update(muralId, {
+                    'Lido': newValue
+                });
+                console.log(`Successfully updated Lido field in ${tableName}`);
+            }
+            // If we found the record and processed it (or skipped because already read), we stop
+            return;
+        } catch (e) {
+            // Silently try next table
+            continue;
         }
-    } catch (e) {
-        console.error('Error updating Lido field in ◉ No ar!:', e);
-        // Fallback: try updating as single string if array fails, or just catch
     }
 }
 

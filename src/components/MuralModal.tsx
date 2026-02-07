@@ -12,14 +12,15 @@ interface MuralModalProps {
 }
 
 export function MuralModal({ item, onClose }: MuralModalProps) {
-    const [isReadingConfirmed, setIsReadingConfirmed] = useState(false);
+    const [isReadingConfirmed, setIsReadingConfirmed] = useState(item.isRead);
     const [readers, setReaders] = useState<{ userName: string, timestamp: string }[]>([]);
     const [isLoadingReaders, setIsLoadingReaders] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
+        setIsReadingConfirmed(item.isRead);
         loadReaders();
-    }, [item.id]);
+    }, [item.id, item.isRead]);
 
     const loadReaders = async () => {
         setIsLoadingReaders(true);
@@ -37,8 +38,12 @@ export function MuralModal({ item, onClose }: MuralModalProps) {
             const result = await markMuralAsReadAction(item.id);
             if (result.success) {
                 setIsReadingConfirmed(true);
-                // toast.success('Leitura confirmada com sucesso!');
+                // Refresh data
                 loadReaders();
+                // We use a small timeout to allow the user to see the "Lido" state before reload
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 alert(result.error || 'Erro ao confirmar leitura.');
             }
