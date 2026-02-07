@@ -106,18 +106,51 @@ export const createAgency = async (agency: Omit<Agency, 'id'>) => {
 export async function getMuralItems(): Promise<MuralItem[]> {
     const base = getProductBase();
     if (!base) return [];
-    const records = await base('◉ No ar!').select({
-        sort: [{ field: 'Data', direction: 'desc' }]
-    }).all();
 
-    return records.map((record: any) => ({
-        id: record.id,
-        date: record.fields['Data'] as string,
-        category: record.fields['Categoria'] as string,
-        title: record.fields['Título'] as string,
-        details: record.fields['Notes'] as string,
-        isNew: !!record.fields['IsNew']
-    }));
+    let records;
+    try {
+        // Try '◉ No ar!' first as requested by user previously
+        records = await base('◉ No ar!').select({
+            sort: [{ field: 'Data', direction: 'desc' }]
+        }).all();
+    } catch (e) {
+        console.warn("'◉ No ar!' table not found or error, trying 'Mural' table...", e);
+        try {
+            // Fallback to 'Mural' table which is visible in the screenshot
+            records = await base('Mural').select({
+                sort: [{ field: 'Data', direction: 'desc' }]
+            }).all();
+        } catch (e2: any) {
+            // Try Mural without specific sort if 'Data' field is also missing
+            try {
+                records = await base('Mural').select().all();
+            } catch (e3: any) {
+                throw new Error(`Tabela de Mural não encontrada. Verifique se existe a aba 'Mural' ou '◉ No ar!' no Airtable. Erro: ${e2.message}`);
+            }
+        }
+    }
+
+    return records.map((record: any) => {
+        const fields = record.fields;
+
+        // Use 'Select' field for IsNew if 'IsNew' is missing, matching screenshot
+        const isNew = fields['IsNew'] === true || fields['Select'] === 'Novo!';
+
+        // Flexible field mapping based on common names and screenshot
+        const title = fields['Título'] || fields['Aviso'] || fields['Title'] || 'Sem título';
+        const details = fields['Notes'] || fields['Detalhes'] || fields['Details'] || '';
+        const date = fields['Data'] || fields['Date'] || new Date().toISOString();
+        const category = fields['Categoria'] || fields['Category'] || 'Geral';
+
+        return {
+            id: record.id,
+            date: date as string,
+            category: category as string,
+            title: title as string,
+            details: details as string,
+            isNew: !!isNew
+        };
+    });
 }
 
 export async function markAsRead(muralId: string, userEmail: string, userName: string, agencyId: string): Promise<void> {

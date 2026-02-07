@@ -124,9 +124,9 @@ export async function fetchMural(): Promise<{ items: MuralItem[], error?: string
     try {
         const items = await getMuralItems();
         return { items };
-    } catch (e) {
+    } catch (e: any) {
         console.error('Error fetching mural:', e);
-        return { items: [], error: 'Erro ao carregar o mural.' };
+        return { items: [], error: `Erro ao carregar o mural: ${e.message || 'Unknown error'}` };
     }
 }
 
