@@ -137,11 +137,8 @@ export function MuralModal({ item, onClose }: MuralModalProps) {
                                 <div className="col-span-2 text-center py-4 text-gray-400 text-sm">Carregando lista...</div>
                             ) : readers.length > 0 ? (
                                 readers.map((reader, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+                                    <div key={idx} className="flex items-center p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
                                         <span className="text-sm font-semibold text-gray-700">{reader.userName}</span>
-                                        <span className="text-[10px] text-gray-400 font-medium">
-                                            {formatDate(reader.timestamp)} às {formatTime(reader.timestamp)}
-                                        </span>
                                     </div>
                                 ))
                             ) : (
