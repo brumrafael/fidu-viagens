@@ -130,9 +130,9 @@ export default function ReservasPage() {
                         <ArrowLeft className="h-4 w-4 mr-2" />
                         Voltar
                     </Button>
-                    <h1 className="text-4xl font-bold tracking-tight mb-2" style={{ color: '#3b5998' }}>Finalizar Reserva</h1>
+                    <h1 className="text-4xl font-bold tracking-tight mb-2" style={{ color: '#3b5998' }}>Solicitação de Reserva</h1>
                     <p className="text-gray-500 text-lg">
-                        Revise os itens e preencha os dados do cliente para processar a reserva.
+                        Preencha os dados abaixo para enviar sua solicitação de reserva. Nossa equipe analisará a disponibilidade.
                     </p>
                 </div>
             </div>
@@ -199,10 +199,10 @@ export default function ReservasPage() {
                                 ) : (
                                     <CheckCircle2 className="h-6 w-6 mr-3" />
                                 )}
-                                Confirmar Solicitação de Reserva
+                                Enviar Solicitação de Reserva
                             </Button>
                             <p className="text-center text-sm text-gray-400 mt-6 max-w-sm mx-auto leading-relaxed">
-                                Ao confirmar, nossa central será notificada e entrará em contato para finalização.
+                                Ao enviar, nossa central analisará a disponibilidade e crédito antes da confirmação final.
                             </p>
                         </div>
                     </div>

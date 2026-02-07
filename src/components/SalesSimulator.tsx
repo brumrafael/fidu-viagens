@@ -79,12 +79,12 @@ export function SalesSimulator({ isOpen, onClose, agencyInfo }: SalesSimulatorPr
                 <SheetHeader className="mb-6">
                     <SheetTitle className="text-[#3b5998] flex items-center gap-2">
                         <ShoppingCart className="h-5 w-5" />
-                        Simulador Multi-Produtos
+                        Simulador de Experiências
                     </SheetTitle>
                     <SheetDescription>
                         {selectedProducts.length === 0
                             ? 'Selecione passeios no tarifário para simular'
-                            : `${selectedProducts.length} passeio(s) com quantidades individuais`}
+                            : `${selectedProducts.length} item(s) em sua solicitação de reserva`}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -189,7 +189,7 @@ export function SalesSimulator({ isOpen, onClose, agencyInfo }: SalesSimulatorPr
                                 onClick={handleProceedToReserve}
                                 disabled={selectedProducts.length === 0}
                             >
-                                Prosseguir para Reserva
+                                Prosseguir com Solicitação
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
                         )}
