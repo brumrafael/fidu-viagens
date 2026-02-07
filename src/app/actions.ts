@@ -77,38 +77,56 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
             return { products: [], agency: agencyInfo };
         }
 
-        // Calculate Prices (Airtable value is SALE price, we calculate NETO)
-        const agencyProducts = products.map(product => {
-            const calculateNeto = (venda: number) => Math.round(venda * (1 - commissionRate) * 100) / 100;
+        // Calculate Prices and Filter by Skill (Destination)
+        const role = user.publicMetadata?.role;
+        const isAdmin = role === 'admin' || email === 'rafael@fidu.com' || email === 'admin@fidu.com';
 
-            return {
-                id: product.id,
-                destination: product.destination,
-                tourName: product.tourName,
-                category: product.category,
-                // Adulto
-                salePriceAdulto: product.priceAdulto,
-                netoPriceAdulto: calculateNeto(product.priceAdulto),
-                // Menor
-                salePriceMenor: product.priceMenor,
-                netoPriceMenor: calculateNeto(product.priceMenor),
-                // Bebê
-                salePriceBebe: product.priceBebe,
-                netoPriceBebe: calculateNeto(product.priceBebe),
+        const authorizedSkills = (agency.skills || []).map(s => s.toLowerCase().trim());
 
-                pickup: product.pickup,
-                retorno: product.retorno,
-                temporada: product.temporada,
-                diasElegiveis: product.diasElegiveis,
-                subCategory: product.subCategory,
-                taxasExtras: product.taxasExtras,
-                description: product.description,
-                inclusions: product.inclusions,
-                exclusions: product.exclusions,
-                requirements: product.requirements,
-                imageUrl: product.imageUrl
-            };
-        });
+        const agencyProducts = products
+            .filter(product => {
+                // Admins see everything
+                if (isAdmin) return true;
+
+                // If there are skills defined, the user must have the skill for that destination
+                // If no skills are defined, we return NO products (strict whitelist)
+                if (authorizedSkills.length === 0) return false;
+
+                return authorizedSkills.some(skill =>
+                    skill === product.destination.toLowerCase().trim()
+                );
+            })
+            .map(product => {
+                const calculateNeto = (venda: number) => Math.round(venda * (1 - commissionRate) * 100) / 100;
+
+                return {
+                    id: product.id,
+                    destination: product.destination,
+                    tourName: product.tourName,
+                    category: product.category,
+                    // Adulto
+                    salePriceAdulto: product.priceAdulto,
+                    netoPriceAdulto: calculateNeto(product.priceAdulto),
+                    // Menor
+                    salePriceMenor: product.priceMenor,
+                    netoPriceMenor: calculateNeto(product.priceMenor),
+                    // Bebê
+                    salePriceBebe: product.priceBebe,
+                    netoPriceBebe: calculateNeto(product.priceBebe),
+
+                    pickup: product.pickup,
+                    retorno: product.retorno,
+                    temporada: product.temporada,
+                    diasElegiveis: product.diasElegiveis,
+                    subCategory: product.subCategory,
+                    taxasExtras: product.taxasExtras,
+                    description: product.description,
+                    inclusions: product.inclusions,
+                    exclusions: product.exclusions,
+                    requirements: product.requirements,
+                    imageUrl: product.imageUrl
+                };
+            });
 
         return { products: agencyProducts, agency: agencyInfo };
     } catch (err: any) {

@@ -80,6 +80,7 @@ export const getAgencyByEmail = async (email: string): Promise<Agency | null> =>
         name: record.fields['Agency'] as string || record.fields['Name'] as string,
         email: record.fields['mail'] as string,
         commissionRate: record.fields['Comision_base'] as number || 0,
+        skills: record.fields['Skill'] as string[] || [],
     };
 };
 

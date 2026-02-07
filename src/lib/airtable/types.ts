@@ -25,4 +25,5 @@ export interface Agency {
     name: string;
     email: string; // Linked to Clerk User Email
     commissionRate: number; // e.g., 0.10 for 10%
+    skills?: string[]; // Allowed destinations
 }
