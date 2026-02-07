@@ -6,11 +6,11 @@ export default async function PortalLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { agency } = await getAgencyProducts();
+    const { agency, hasUnreadMural } = await getAgencyProducts();
 
     return (
         <div className="min-h-screen bg-gray-50/50">
-            <PortalHeader agency={agency} />
+            <PortalHeader agency={agency} hasUnreadMural={hasUnreadMural} />
             {children}
         </div>
     );

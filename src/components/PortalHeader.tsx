@@ -7,15 +7,16 @@ import { AgencyInfo } from '@/app/actions';
 
 interface PortalHeaderProps {
     agency?: AgencyInfo;
+    hasUnreadMural?: boolean;
 }
 
-export function PortalHeader({ agency }: PortalHeaderProps) {
+export function PortalHeader({ agency, hasUnreadMural }: PortalHeaderProps) {
     const pathname = usePathname();
 
     const navItems = [
         { label: 'Tarifário', href: '/portal', icon: null },
         { label: 'Reservas', href: '/portal/reservas', icon: null, permission: agency?.canReserve },
-        { label: 'Mural', href: '/portal/mural', icon: null },
+        { label: 'Mural', href: '/portal/mural', icon: null, showBadge: hasUnreadMural },
         { label: 'Portfólio', href: 'https://portfolio.fiduviagens.com.br', icon: null, external: true },
     ];
 
@@ -40,12 +41,15 @@ export function PortalHeader({ agency }: PortalHeaderProps) {
                                     href={item.href}
                                     target={item.external ? "_blank" : undefined}
                                     rel={item.external ? "noopener noreferrer" : undefined}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${isActive
                                         ? 'bg-blue-50 text-[#3b5998]'
                                         : 'text-gray-600 hover:bg-gray-50'
                                         }`}
                                 >
                                     {item.label}
+                                    {item.showBadge && (
+                                        <span className="flex h-2 w-2 rounded-full bg-[#3b5998] animate-pulse" />
+                                    )}
                                 </Link>
                             );
                         })}

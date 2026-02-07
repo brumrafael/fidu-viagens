@@ -13,7 +13,7 @@ export interface AgencyInfo {
 
 import { AgencyProduct, MuralItem } from '@/lib/airtable/types';
 
-export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], agency?: AgencyInfo, error?: string }> {
+export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], agency?: AgencyInfo, hasUnreadMural?: boolean, error?: string }> {
     try {
         const user = await currentUser();
 
@@ -51,11 +51,20 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
             isInternal: !!agency.isInternal
         };
 
+        // Fetch Mural items to check for unread
+        let hasUnreadMural = false;
+        try {
+            const muralItems = await getMuralItems(email, agencyInfo.agentName);
+            hasUnreadMural = muralItems.some(item => !item.isRead);
+        } catch (e) {
+            console.error('Error checking unread mural in Layout:', e);
+        }
+
         // Fetch Base Products
         const products = await getProducts();
 
         if (!products || products.length === 0) {
-            return { products: [], agency: agencyInfo };
+            return { products: [], agency: agencyInfo, hasUnreadMural };
         }
 
         // Calculate Prices and Filter by Skill (Destination)
@@ -110,7 +119,7 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
                 };
             });
 
-        return { products: agencyProducts, agency: agencyInfo };
+        return { products: agencyProducts, agency: agencyInfo, hasUnreadMural };
     } catch (err: any) {
         console.error('Error in getAgencyProducts:', err);
         return {
