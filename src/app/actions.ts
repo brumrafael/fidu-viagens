@@ -8,6 +8,7 @@ export interface AgencyInfo {
     agencyName: string;
     commissionRate: number;
     canReserve: boolean;
+    canAccessMural: boolean;
     isInternal: boolean;
 }
 
@@ -48,6 +49,7 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
             agencyName: agency.name,
             commissionRate: commissionRate,
             canReserve: isAdmin || !!agency.canReserve,
+            canAccessMural: isAdmin || !!agency.canAccessMural,
             isInternal: !!agency.isInternal
         };
 
@@ -137,6 +139,10 @@ export async function fetchMural(): Promise<{ items: MuralItem[], error?: string
 
         const agency = await getAgencyByEmail(email);
         if (!agency) throw new Error('Agency not found');
+
+        if (!agency.canAccessMural) {
+            throw new Error('ACESSO NEGADO: Você não tem permissão para acessar o Mural.');
+        }
 
         const userName = agency.agentName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
 

@@ -10,6 +10,17 @@ export const metadata: Metadata = {
 export default async function MuralPage() {
     const { items, error } = await fetchMural();
 
+    if (error && error.includes('ACESSO NEGADO')) {
+        return (
+            <div className="max-w-[1200px] mx-auto px-4 py-16 text-center">
+                <div className="bg-amber-50 border border-amber-100 p-8 rounded-2xl inline-block max-w-lg">
+                    <h2 className="text-xl font-bold text-amber-900 mb-2">Acesso Restrito</h2>
+                    <p className="text-amber-700">{error}</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col mb-8">

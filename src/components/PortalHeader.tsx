@@ -16,7 +16,7 @@ export function PortalHeader({ agency, hasUnreadMural }: PortalHeaderProps) {
     const navItems = [
         { label: 'Tarifário', href: '/portal', icon: null },
         { label: 'Reservas', href: '/portal/reservas', icon: null, permission: agency?.canReserve },
-        { label: 'Mural', href: '/portal/mural', icon: null, showBadge: hasUnreadMural },
+        { label: 'Mural', href: '/portal/mural', icon: null, showBadge: hasUnreadMural, permission: agency?.canAccessMural },
         { label: 'Portfólio', href: 'https://portfolio.fiduviagens.com.br', icon: null, external: true },
     ];
 

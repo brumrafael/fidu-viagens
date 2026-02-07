@@ -36,8 +36,9 @@ export interface Agency {
     email: string; // Linked to Clerk User Email
     commissionRate: number; // e.g., 0.10 for 10%
     skills?: string[]; // Allowed destinations
-    canReserve?: boolean; // Access to reservation page
-    isInternal?: boolean; // Internal vendor (no commission display, see sale price)
+    canReserve: boolean; // Access to reservation page
+    canAccessMural: boolean;
+    isInternal: boolean; // Internal vendor (no commission display, see sale price)
 }
 
 export interface MuralItem {
