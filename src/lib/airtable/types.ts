@@ -75,6 +75,16 @@ export interface Agency {
     canReserve: boolean; // Access to reservation page
     canAccessMural: boolean;
     isInternal: boolean; // Internal vendor (no commission display, see sale price)
+    canAccessExchange: boolean;
+}
+
+export interface ExchangeRate {
+    id: string;
+    currency: string;
+    value: number;
+    symbol: string;
+    lastUpdated?: string;
+    observations?: string;
 }
 
 export interface MuralItem {

@@ -1,5 +1,5 @@
 import { getProductBase, getAgencyBase } from './client';
-import { Product, Agency, MuralItem, MuralReadLog, Reservation } from './types';
+import { Product, Agency, MuralItem, MuralReadLog, Reservation, ExchangeRate } from './types';
 import { FieldSet } from 'airtable';
 
 // Helper to map record to Product
@@ -19,7 +19,7 @@ const mapToProduct = (record: any): Product => {
         destination: fields['Destino'] as string || 'General',
         tourName: fields['Serviço'] as string || 'Unnamed Tour',
         category: fields['Categoria do Serviço'] as string || 'Other',
-        subCategory: Array.isArray(fields['Categoria']) ? fields['Categoria'].join(', ') : fields['Categoria'] as string,
+        subCategory: (fields['Tags'] || fields['Categoria']) ? (Array.isArray(fields['Tags'] || fields['Categoria']) ? (fields['Tags'] || fields['Categoria']).join(', ') : (fields['Tags'] || fields['Categoria']) as string) : '',
         // taxasExtras removed from here to avoid duplication with the robust check below
         // Default/Fallback prices (using Inverno as base for now, or could change logic)
         basePrice: fields['INV26 ADU'] as number || 0,
@@ -48,15 +48,19 @@ const mapToProduct = (record: any): Product => {
         imageUrl: fields['Mídia do Passeio']?.[0]?.url,
 
         // New fields mapping
-        status: fields['Status'] as string || 'Ativo',
+        status: (Array.isArray(fields['Status']) ? fields['Status'][0] : (fields['Status'] || fields['STATUS'] || 'Ativo')) as string,
         whatToBring: fields['O que levar'] as string,
-        // Extremely robust mapping for Operador
         provider: (
+            fields['Operador_Nome'] ||
+            fields['Operador Nome'] ||
+            fields['OPERADOR_NOME'] ||
+            fields['Operador (from Operadores)'] ||
+            fields['Operador (from Operador)'] ||
+            fields['OPERADOR'] ||
+            fields['Operador'] ||
+            fields['Fornecedor'] ||
             (fields['Operador'] as any)?.name ||
-            (Array.isArray(fields['Operador']) ? fields['Operador'][0] : fields['Operador']) ||
-            (fields['OPERADOR'] as any)?.name ||
-            (fields['Provedor'] as any)?.name ||
-            (fields['Provider'] as any)?.name ||
+            (Array.isArray(fields['Operador']) && typeof fields['Operador'][0] === 'string' && !fields['Operador'][0].startsWith('rec') ? fields['Operador'][0] : null) ||
             '–'
         ) as string,
         duration: fields['Duração'] as string,   // New Duration field
@@ -127,8 +131,11 @@ export const getAgencyByEmail = async (email: string): Promise<Agency | null> =>
         canReserve: fields['Reserva'] as boolean || false,
         canAccessMural: fields['Mural'] as boolean || false,
         isInternal: fields['Interno'] as boolean || false,
+        canAccessExchange: fields['Exchange'] as boolean || false,
     };
 };
+
+
 
 export const createAgency = async (agency: Omit<Agency, 'id'>) => {
     const base = getAgencyBase();
@@ -419,5 +426,90 @@ export async function createReservation(reservation: Reservation): Promise<strin
     } catch (e: any) {
         console.error('Error creating reservation in Airtable:', e.message);
         throw new Error(`Failed to create reservation: ${e.message}`);
+    }
+}
+
+/**
+ * Get exchange rates from the Cambio table
+ */
+export async function getExchangeRates(): Promise<ExchangeRate[]> {
+    const base = getProductBase();
+    if (!base) {
+        console.error('Product base not available for Exchange Rates');
+        return [];
+    }
+
+    // Helper to process horizontal records (one record = multiple rates)
+    const processRecords = (records: any[]) => {
+        const processedRates: ExchangeRate[] = [];
+
+        records.forEach(record => {
+            const fields = record.fields;
+            const timestamp = (fields['Data do registro'] || fields['Created'] || new Date().toISOString()) as string;
+            // Get observations from the record
+            const observations = (fields['Observações'] || fields['Notes'] || fields['Obs']) as string | undefined;
+
+            // 1. USD
+            if (fields['USD → BRL']) {
+                // User requirement: RAW integer value, no conversion/division
+                const val = Number(fields['USD → BRL']);
+
+                processedRates.push({
+                    id: `${record.id}-USD`,
+                    currency: 'USD',
+                    value: val,
+                    symbol: 'US$',
+                    lastUpdated: timestamp,
+                    observations
+                });
+            }
+
+            // 2. CLP
+            if (fields['CLP → BRL']) {
+                processedRates.push({
+                    id: `${record.id}-CLP`,
+                    currency: 'CLP',
+                    value: Number(fields['CLP → BRL']),
+                    symbol: '$',
+                    lastUpdated: timestamp,
+                    observations
+                });
+            }
+
+            // 3. ARS
+            if (fields['ARS → BRL']) {
+                processedRates.push({
+                    id: `${record.id}-ARS`,
+                    currency: 'ARS',
+                    value: Number(fields['ARS → BRL']),
+                    symbol: '$',
+                    lastUpdated: timestamp,
+                    observations
+                });
+            }
+        });
+
+        return processedRates;
+    };
+
+    try {
+        // Try ID first with 'Data do registro' sort
+        const records = await base('tbleUkvNsOBje1yUx').select({
+            view: 'Grid view',
+            sort: [{ field: 'Data do registro', direction: 'desc' }]
+        }).all();
+
+        return processRecords(records);
+    } catch (err: any) {
+        console.warn(`Failed to fetch from table ID (tbleUkvNsOBje1yUx): ${err.message}. Trying fallback 'Cambio' without sort...`);
+
+        try {
+            // Fallback to Name 'Cambio', try unsorted first to be safe
+            const records = await base('Cambio').select().all();
+            return processRecords(records);
+        } catch (innerError: any) {
+            console.error(`Failed to fetch from fallback 'Cambio': ${innerError.message}`);
+            return [];
+        }
     }
 }

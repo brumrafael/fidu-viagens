@@ -1,7 +1,8 @@
 'use server'
 
 import { currentUser } from '@clerk/nextjs/server';
-import { getProducts, getAgencyByEmail, getMuralItems, markAsRead, getMuralReaders, createReservation } from '@/lib/airtable/service';
+import { getProducts, getAgencyByEmail, getMuralItems, markAsRead, getMuralReaders, createReservation, getExchangeRates } from '@/lib/airtable/service';
+import { revalidatePath } from 'next/cache';
 
 export interface AgencyInfo {
     agentName: string;
@@ -10,9 +11,10 @@ export interface AgencyInfo {
     canReserve: boolean;
     canAccessMural: boolean;
     isInternal: boolean;
+    canAccessExchange: boolean;
 }
 
-import { AgencyProduct, MuralItem, Reservation } from '@/lib/airtable/types';
+import { AgencyProduct, MuralItem, Reservation, ExchangeRate } from '@/lib/airtable/types';
 
 export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], agency?: AgencyInfo, hasUnreadMural?: boolean, error?: string }> {
     try {
@@ -50,7 +52,8 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
             commissionRate: commissionRate,
             canReserve: isAdmin || !!agency.canReserve,
             canAccessMural: isAdmin || !!agency.canAccessMural,
-            isInternal: !!agency.isInternal
+            isInternal: !!agency.isInternal,
+            canAccessExchange: isAdmin || !!agency.canAccessExchange
         };
 
         // Fetch Mural items to check for unread
@@ -141,7 +144,11 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
                     inclusions: product.inclusions,
                     exclusions: product.exclusions,
                     requirements: product.requirements,
-                    imageUrl: product.imageUrl
+                    imageUrl: product.imageUrl,
+                    status: product.status,
+                    provider: product.provider,
+                    duration: product.duration,
+                    whatToBring: product.whatToBring,
                 };
             });
 
@@ -252,5 +259,28 @@ export async function createReservationAction(data: Omit<Reservation, 'agentName
     } catch (e: any) {
         console.error('Error in createReservationAction:', e);
         return { success: false, error: e.message || 'Erro ao criar reserva.' };
+    }
+}
+
+export async function getExchangeRatesAction(): Promise<{ rates: ExchangeRate[], error?: string }> {
+    try {
+        const user = await currentUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const email = user.emailAddresses[0]?.emailAddress;
+        if (!email) throw new Error('No email found');
+
+        const agency = await getAgencyByEmail(email);
+        if (!agency) throw new Error('Agency not found');
+
+        if (!agency.canAccessExchange) {
+            return { rates: [] };
+        }
+
+        const rates = await getExchangeRates();
+        return { rates };
+    } catch (e: any) {
+        console.error('Error in getExchangeRatesAction:', e);
+        return { rates: [], error: e.message || 'Erro ao carregar cotações.' };
     }
 }
