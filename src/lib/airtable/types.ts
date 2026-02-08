@@ -30,6 +30,12 @@ export interface Product {
     exclusions?: string; // Column 'Não Incluso'
     requirements?: string; // Column 'Requisitos'
     imageUrl?: string;
+
+    // New fields for Column Visibility
+    status?: string; // Column 'Status'
+    whatToBring?: string; // Column 'O que levar'
+    provider?: string; // Column 'Fornecedor' (restricted)
+    duration?: string; // Column 'Duração'
 }
 
 export interface AgencyProduct extends Product {

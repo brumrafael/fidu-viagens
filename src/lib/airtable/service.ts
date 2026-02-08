@@ -20,7 +20,7 @@ const mapToProduct = (record: any): Product => {
         tourName: fields['Serviço'] as string || 'Unnamed Tour',
         category: fields['Categoria do Serviço'] as string || 'Other',
         subCategory: Array.isArray(fields['Categoria']) ? fields['Categoria'].join(', ') : fields['Categoria'] as string,
-        taxasExtras: fields['Taxas Extras?'] as string,
+        // taxasExtras removed from here to avoid duplication with the robust check below
         // Default/Fallback prices (using Inverno as base for now, or could change logic)
         basePrice: fields['INV26 ADU'] as number || 0,
         priceAdulto: fields['INV26 ADU'] as number || 0,
@@ -46,6 +46,14 @@ const mapToProduct = (record: any): Product => {
         exclusions: fields['Não Incluso'] as string,
         requirements: fields['Requisitos'] as string,
         imageUrl: fields['Mídia do Passeio']?.[0]?.url,
+
+        // New fields mapping
+        status: fields['Status'] as string || 'Ativo',
+        whatToBring: fields['O que levar'] as string,
+        provider: (fields['Fornecedor'] as any)?.name || fields['Fornecedor'] as string, // Handle looked up record or string
+        duration: fields['Duração'] as string,   // New Duration field
+        // Robust Taxas Extras check (with and without ?)
+        taxasExtras: (fields['Taxas Extras?'] || fields['Taxas Extras']) as string,
     };
 };
 
@@ -57,13 +65,13 @@ export const getProducts = async (): Promise<Product[]> => {
     }
 
     try {
-        // Using 'Passeios' table which contains the detailed tarifário
-        const records = await base('Passeios').select().all();
+        // Using explicit Table ID provided by user: tbl4RRA0YiPk8DMjs
+        const records = await base('tbl4RRA0YiPk8DMjs').select().all();
         return records.map(mapToProduct);
     } catch (err) {
-        console.error('Error fetching from Passeios, trying fallback Products:', err);
+        console.error('Error fetching from Product table ID, trying fallback name Passeios:', err);
         try {
-            const records = await base('Products').select().all();
+            const records = await base('Passeios').select().all();
             return records.map(mapToProduct);
         } catch (innerErr) {
             console.error('Total failure fetching products:', innerErr);
