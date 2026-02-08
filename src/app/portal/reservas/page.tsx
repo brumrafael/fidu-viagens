@@ -267,7 +267,7 @@ export default function ReservasPage() {
                         <div className="space-y-4 pt-8 border-t border-gray-200/60">
                             <div className="flex justify-between items-center text-gray-500 text-sm font-medium">
                                 <span>Subtotal Sugerido</span>
-                                <span className="font-bold text-gray-900">{formatPrice(totals.total)}</span>
+                                <span className="font-bold text-gray-900">{formatCurrency(totals.total)}</span>
                             </div>
 
                             {!agencyInfo?.isInternal && (
@@ -276,14 +276,14 @@ export default function ReservasPage() {
                                         <span className="text-blue-600 text-[10px] uppercase font-black tracking-widest">Sua Comissão</span>
                                         <span className="text-blue-400 text-[9px] font-medium leading-tight">{(commissionRate * 100).toFixed(0)}% de rentabilidade</span>
                                     </div>
-                                    <span className="text-xl font-bold text-blue-600 font-mono tracking-tight">{formatPrice(totals.commission)}</span>
+                                    <span className="text-xl font-bold text-blue-600 font-mono tracking-tight">{formatCurrency(totals.commission)}</span>
                                 </div>
                             )}
 
                             <div className="flex justify-between items-center pt-2">
                                 <span className="text-base font-bold text-gray-900">Total à Pagar (NETO)</span>
                                 <span className="text-2xl font-black text-gray-900 tracking-tight">
-                                    {formatPrice(totals.total - totals.commission)}
+                                    {formatCurrency(totals.total - totals.commission)}
                                 </span>
                             </div>
                         </div>
