@@ -319,7 +319,6 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2 mt-4 pt-4 border-t border-gray-100">Adicionar</div>
                                         <div className="space-y-1">
                                             {ALL_COLUMNS.filter(col => !visibleColumns.includes(col.id)).map(col => {
-                                                if (col.restricted && !isInternal) return null;
                                                 return (
                                                     <button
                                                         key={col.id}
@@ -331,7 +330,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                                     </button>
                                                 );
                                             })}
-                                            {ALL_COLUMNS.filter(col => !visibleColumns.includes(col.id) && (!col.restricted || isInternal)).length === 0 && (
+                                            {ALL_COLUMNS.filter(col => !visibleColumns.includes(col.id)).length === 0 && (
                                                 <div className="text-xs text-center py-4 text-gray-400 italic">
                                                     Todas as colunas visíveis
                                                 </div>
