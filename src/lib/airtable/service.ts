@@ -50,7 +50,7 @@ const mapToProduct = (record: any): Product => {
         // New fields mapping
         status: fields['Status'] as string || 'Ativo',
         whatToBring: fields['O que levar'] as string,
-        provider: (fields['Operador'] as any)?.name || fields['Operador'] as string || '–', // Map exclusively to Operador with fallback
+        provider: (fields['Operador'] as any)?.name || (Array.isArray(fields['Operador']) ? fields['Operador'][0] : fields['Operador']) as string || '–',
         duration: fields['Duração'] as string,   // New Duration field
         // Robust Taxas Extras check (with and without ?)
         taxasExtras: (fields['Taxas Extras?'] || fields['Taxas Extras']) as string,
@@ -67,6 +67,12 @@ export const getProducts = async (): Promise<Product[]> => {
     try {
         // Using explicit Table ID provided by user: tbl4RRA0YiPk8DMjs
         const records = await base('tbl4RRA0YiPk8DMjs').select().all();
+
+        if (records.length > 0) {
+            console.log('Airtable Field names available:', Object.keys(records[0].fields));
+            console.log('Sample record Operador value:', records[0].fields['Operador']);
+        }
+
         return records.map(mapToProduct);
     } catch (err) {
         console.error('Error fetching from Product table ID, trying fallback name Passeios:', err);

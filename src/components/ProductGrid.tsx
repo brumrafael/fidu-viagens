@@ -46,7 +46,7 @@ const ALL_COLUMNS = [
     { id: 'destination', label: 'Destino' },
     { id: 'tourName', label: 'Serviço' },
     { id: 'subCategory', label: 'Categoria' },
-    { id: 'provider', label: 'Operador', restricted: true },
+    { id: 'provider', label: 'Operador' },
     { id: 'priceAdulto', label: 'Adulto' },
     { id: 'priceMenor', label: 'Menor' },
     { id: 'priceBebe', label: 'Bebê' },
@@ -61,7 +61,7 @@ const ALL_COLUMNS = [
     { id: 'duration', label: 'Duração' },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS = ['category', 'tourName', 'status', 'priceAdulto', 'priceMenor', 'priceBebe', 'pickup', 'diasElegiveis', 'temporada', 'duration', 'subCategory'];
+const DEFAULT_VISIBLE_COLUMNS = ['category', 'tourName', 'status', 'provider', 'priceAdulto', 'priceMenor', 'priceBebe', 'pickup', 'diasElegiveis', 'temporada', 'duration', 'subCategory'];
 
 const SortIcon = ({ columnKey, sortConfig }: { columnKey: keyof AgencyProduct | string, sortConfig: SortConfig }) => {
     if (sortConfig.key !== columnKey) return <ArrowUpDown className="ml-1 h-3 w-3 opacity-30" />;
