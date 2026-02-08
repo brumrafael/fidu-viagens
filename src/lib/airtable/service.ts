@@ -76,11 +76,6 @@ export const getProducts = async (): Promise<Product[]> => {
         // Using explicit Table ID provided by user: tbl4RRA0YiPk8DMjs
         const records = await base('tbl4RRA0YiPk8DMjs').select().all();
 
-        if (records.length > 0) {
-            console.log('Airtable Field names available:', Object.keys(records[0].fields));
-            console.log('Sample record Operador value:', records[0].fields['Operador']);
-        }
-
         return records.map(mapToProduct);
     } catch (err) {
         console.error('Error fetching from Product table ID, trying fallback name Passeios:', err);
