@@ -7,11 +7,7 @@ export default async function Portal() {
 
     return (
         <main className="container mx-auto px-6 py-10">
-            <div className="mb-6">
-                <p className="text-gray-500">
-                    Tarifas exclusivas para nossos parceiros verificados.
-                </p>
-            </div>
+
 
             {error ? (
                 <div className="p-4 rounded-lg bg-red-50 text-red-600 border border-red-100">
