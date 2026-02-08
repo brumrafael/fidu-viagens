@@ -50,7 +50,7 @@ const mapToProduct = (record: any): Product => {
         // New fields mapping
         status: fields['Status'] as string || 'Ativo',
         whatToBring: fields['O que levar'] as string,
-        provider: (fields['Fornecedor'] as any)?.name || fields['Fornecedor'] as string, // Handle looked up record or string
+        provider: (fields['Operador'] as any)?.name || fields['Operador'] as string || '–', // Map exclusively to Operador with fallback
         duration: fields['Duração'] as string,   // New Duration field
         // Robust Taxas Extras check (with and without ?)
         taxasExtras: (fields['Taxas Extras?'] || fields['Taxas Extras']) as string,

@@ -46,7 +46,7 @@ const ALL_COLUMNS = [
     { id: 'destination', label: 'Destino' },
     { id: 'tourName', label: 'Serviço' },
     { id: 'subCategory', label: 'Categoria' },
-    { id: 'provider', label: 'Fornecedor', restricted: true },
+    { id: 'provider', label: 'Operador', restricted: true },
     { id: 'priceAdulto', label: 'Adulto' },
     { id: 'priceMenor', label: 'Menor' },
     { id: 'priceBebe', label: 'Bebê' },
