@@ -4,7 +4,8 @@ import { AgencyProduct } from '@/lib/airtable/types';
 import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ShoppingCart, ArrowUpDown, ChevronUp, ChevronDown, Plus, X, Settings, CheckCircle2, ArrowUp, ArrowDown, RefreshCw, SlidersHorizontal, Filter, Info } from 'lucide-react';
+import { Search, ShoppingCart, ArrowUpDown, ChevronUp, ChevronDown, Plus, X, Settings, CheckCircle2, ArrowUp, ArrowDown, RefreshCw, SlidersHorizontal, Filter, Info, Eye } from 'lucide-react';
+import { useUser } from '@clerk/nextjs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { SalesSimulator } from './SalesSimulator';
@@ -64,7 +65,7 @@ const ALL_COLUMNS = [
     { id: 'duration', label: 'Duração' },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS = ['tourName', 'provider', 'priceAdulto', 'priceMenor', 'priceBebe', 'pickup', 'diasElegiveis', 'temporada', 'duration', 'subCategory'];
+const DEFAULT_VISIBLE_COLUMNS = ['tourName', 'priceAdulto', 'priceMenor', 'priceBebe', 'pickup', 'retorno', 'diasElegiveis', 'subCategory'];
 
 const SortIcon = ({ columnKey, sortConfig }: { columnKey: keyof AgencyProduct | string, sortConfig: SortConfig }) => {
     if (sortConfig.key !== columnKey) return <ArrowUpDown className="ml-1 h-3 w-3 opacity-30" />;
@@ -75,8 +76,13 @@ const SortIcon = ({ columnKey, sortConfig }: { columnKey: keyof AgencyProduct | 
 
 
 export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridProps) {
+    const { user } = useUser();
     const { selectedProducts, addToCart, clearCart } = useCart();
-    const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>('fidu_visible_columns', DEFAULT_VISIBLE_COLUMNS);
+
+    // Create a user-specific storage key or use 'guest' if not logged in
+    const storageKey = `fidu_columns_${user?.id || 'guest'}`;
+
+    const [visibleColumns, setVisibleColumns] = useLocalStorage<string[]>(storageKey, DEFAULT_VISIBLE_COLUMNS);
 
     // Filter out invalid columns (like 'status', 'category') that may have been saved before they were removed
     useEffect(() => {
@@ -109,13 +115,16 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
     const [categoryFilter, setCategoryFilter] = useState('REG');
     const [destinationFilter, setDestinationFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [subCategoryFilter, setSubCategoryFilter] = useState('all');
+    const [subCategoryFilter, setSubCategoryFilter] = useState<string[]>([]);
     const [providerFilter, setProviderFilter] = useState('all');
     const [season, setSeason] = useState<'VER26' | 'INV26'>('VER26'); // This is Pricing Mode
     const [temporadaFilter, setTemporadaFilter] = useState('all'); // This is Data Filtering
-    const [diasElegiveisFilter, setDiasElegiveisFilter] = useState('all');
+    const [diasElegiveisFilter, setDiasElegiveisFilter] = useState<string[]>([]);
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'tourName', direction: 'asc' });
     const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+    const [isTagsExpanded, setIsTagsExpanded] = useState(false);
+    const [isDaysExpanded, setIsDaysExpanded] = useState(false);
+    const [selectedDetailProduct, setSelectedDetailProduct] = useState<AgencyProduct | null>(null);
 
     const getEffectiveStatus = (status?: any) => {
         if (!status) return 'Inativo';
@@ -141,10 +150,22 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
         setCategoryFilter('REG');
         setDestinationFilter('all');
         setStatusFilter('all');
-        setSubCategoryFilter('all');
+        setSubCategoryFilter([]);
         setProviderFilter('all');
         setTemporadaFilter('all');
-        setDiasElegiveisFilter('all');
+        setDiasElegiveisFilter([]);
+    };
+
+    const toggleSubCategory = (tag: string) => {
+        setSubCategoryFilter(prev =>
+            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+        );
+    };
+
+    const toggleDiasElegiveis = (day: string) => {
+        setDiasElegiveisFilter(prev =>
+            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+        );
     };
 
     const requestSort = (key: keyof AgencyProduct) => {
@@ -181,10 +202,10 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
             const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
             const matchesDestination = destinationFilter === 'all' || product.destination === destinationFilter;
             const matchesStatus = statusFilter === 'all' || getEffectiveStatus(product.status) === statusFilter;
-            const matchesSubCategory = subCategoryFilter === 'all' || (product.subCategory || '').includes(subCategoryFilter);
+            const matchesSubCategory = subCategoryFilter.length === 0 || subCategoryFilter.some(tag => (product.subCategory || '').includes(tag));
             const matchesProvider = providerFilter === 'all' || product.provider === providerFilter;
             const matchesTemporada = temporadaFilter === 'all' || (product.temporada || '').toUpperCase().includes(temporadaFilter.toUpperCase().replace('26', ''));
-            const matchesDias = diasElegiveisFilter === 'all' || (product.diasElegiveis || []).includes(diasElegiveisFilter);
+            const matchesDias = diasElegiveisFilter.length === 0 || diasElegiveisFilter.some(day => (product.diasElegiveis || []).includes(day));
 
             return matchesSearch && matchesCategory && matchesDestination && matchesStatus && matchesSubCategory && matchesProvider && matchesTemporada && matchesDias;
         });
@@ -211,18 +232,18 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
         <div className="space-y-6">
             {/* Quick Actions Bar */}
             {selectedProducts.length > 0 && (
-                <div className="flex items-center justify-between bg-[#3b5998] text-white p-4 rounded-xl shadow-lg shadow-blue-200/50 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex items-center justify-between bg-[#3b5998] text-white p-4 rounded-xl shadow-lg shadow-[#3b5998]/20 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/20 p-2 rounded-lg">
                             <ShoppingCart className="h-5 w-5" />
                         </div>
                         <div>
                             <p className="text-sm font-bold">{selectedProducts.length} passeio(s) na simulação</p>
-                            <p className="text-[10px] text-blue-100 opacity-90">Clique no botão ao lado para ver o orçamento consolidado</p>
+                            <p className="text-[10px] text-white/80">Clique no botão ao lado para ver o orçamento consolidado</p>
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="secondary" size="sm" className="bg-white text-[#3b5998] hover:bg-blue-50 font-bold" onClick={() => setIsSimulatorOpen(true)}>
+                        <Button variant="secondary" size="sm" className="bg-white text-[#3b5998] hover:bg-gray-50 font-bold" onClick={() => setIsSimulatorOpen(true)}>
                             Ver Simulação
                         </Button>
                         <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" onClick={clearCart}>
@@ -247,7 +268,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
                         placeholder="Buscar passeio ou destino..."
-                        className="pl-9 border-gray-200 focus:ring-blue-500 rounded-lg h-9 bg-gray-50/50 border-none transition-all focus:bg-white focus:shadow-md text-sm shadow-inner"
+                        className="pl-9 border-gray-200 focus:ring-[#3b5998] rounded-lg h-9 bg-gray-50/50 border-none transition-all focus:bg-white focus:shadow-md text-sm shadow-inner"
                         value={searchTerm}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                     />
@@ -296,10 +317,10 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                 </div>
 
                 {/* Active Filter Indicators (Compact) */}
-                {(categoryFilter !== 'REG' || statusFilter !== 'all' || temporadaFilter !== 'all' || subCategoryFilter !== 'all' || providerFilter !== 'all' || diasElegiveisFilter !== 'all') && (
+                {(categoryFilter !== 'REG' || statusFilter !== 'all' || temporadaFilter !== 'all' || subCategoryFilter.length > 0 || providerFilter !== 'all' || diasElegiveisFilter.length > 0) && (
                     <div className="hidden xl:flex items-center gap-1 overflow-hidden px-2">
                         <div className="w-[1px] h-4 bg-gray-200 mr-2" />
-                        <span className="text-[10px] text-[#3b5998] font-bold whitespace-nowrap bg-blue-50 px-2 py-0.5 rounded-full">Filtros ativos</span>
+                        <span className="text-[10px] text-[#3b5998] font-bold whitespace-nowrap bg-[#3b5998]/5 px-2 py-0.5 rounded-full">Filtros ativos</span>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -319,97 +340,146 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
 
                     <Sheet>
                         <SheetTrigger asChild>
-                            <Button variant="outline" className={`h-9 rounded-lg border-gray-200 gap-2 font-bold text-xs uppercase hover:bg-gray-50 px-3 ml-auto lg:ml-0 flex-1 lg:flex-none ${(categoryFilter !== 'REG' || statusFilter !== 'all' || temporadaFilter !== 'all' || subCategoryFilter !== 'all' || providerFilter !== 'all' || diasElegiveisFilter !== 'all') ? 'text-[#3b5998] border-blue-200 bg-blue-50/30' : 'text-gray-600'}`}>
+                            <Button variant="outline" className={`h-9 rounded-lg border-gray-200 gap-2 font-bold text-xs uppercase hover:bg-gray-50 px-3 ml-auto lg:ml-0 flex-1 lg:flex-none ${(categoryFilter !== 'REG' || statusFilter !== 'all' || temporadaFilter !== 'all' || subCategoryFilter.length > 0 || providerFilter !== 'all' || diasElegiveisFilter.length > 0) ? 'text-[#3b5998] border-[#3b5998]/20 bg-[#3b5998]/5' : 'text-gray-600'}`}>
                                 <SlidersHorizontal className="h-3.5 w-3.5" />
                                 <span className="">Filtros</span>
-                                {(categoryFilter !== 'REG' || statusFilter !== 'all' || temporadaFilter !== 'all' || subCategoryFilter !== 'all' || providerFilter !== 'all' || diasElegiveisFilter !== 'all') && (
+                                {(categoryFilter !== 'REG' || statusFilter !== 'all' || temporadaFilter !== 'all' || subCategoryFilter.length > 0 || providerFilter !== 'all' || diasElegiveisFilter.length > 0) && (
                                     <div className="w-1.5 h-1.5 rounded-full bg-[#3b5998]" />
                                 )}
                             </Button>
                         </SheetTrigger>
-                        <SheetContent className="w-full sm:max-w-md p-0 overflow-y-auto">
-                            <SheetHeader className="p-6 border-b bg-gray-50/30">
-                                <SheetTitle className="text-xl font-black flex items-center gap-2 text-gray-800">
-                                    <Filter className="h-5 w-5 text-gray-400" />
+                        <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
+                            <SheetHeader className="p-4 border-b bg-gray-50/30 shrink-0">
+                                <SheetTitle className="text-lg font-black flex items-center gap-2 text-gray-800 uppercase tracking-tight">
+                                    <Filter className="h-4 w-4 text-gray-400" />
                                     Filtros
                                 </SheetTitle>
                             </SheetHeader>
-                            <div className="p-6 space-y-8">
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Disponibilidade (Temporada)</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button onClick={() => setTemporadaFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${temporadaFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Todas</button>
-                                        <button onClick={() => setTemporadaFilter('INV26')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${temporadaFilter === 'INV26' ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Inverno</button>
-                                        <button onClick={() => setTemporadaFilter('VER26')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${temporadaFilter === 'VER26' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Verão</button>
-                                        <button onClick={() => setTemporadaFilter('Ano Todo')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${temporadaFilter === 'Ano Todo' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Ano Todo</button>
+
+                            <div className="flex-1 overflow-y-auto">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-gray-100">
+                                    {/* Coluna Esquerda */}
+                                    <div className="p-4 space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Disponibilidade (Temporada)</label>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <button onClick={() => setTemporadaFilter('all')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${temporadaFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Todas</button>
+                                                <button onClick={() => setTemporadaFilter('INV26')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${temporadaFilter === 'INV26' ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Inverno</button>
+                                                <button onClick={() => setTemporadaFilter('VER26')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${temporadaFilter === 'VER26' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Verão</button>
+                                                <button onClick={() => setTemporadaFilter('Ano Todo')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${temporadaFilter === 'Ano Todo' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Ano Todo</button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Status Operacional</label>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <button onClick={() => setStatusFilter('all')} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${statusFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Todos</button>
+                                                {statuses.map(stat => (
+                                                    <button key={stat} onClick={() => setStatusFilter(stat)} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${statusFilter === stat ? (stat === 'Ativo' ? 'bg-green-600 text-white border-green-600' : 'bg-gray-800 text-white border-gray-800') : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                                                        {stat}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tipo de Serviço</label>
+                                            <div className="flex gap-1.5">
+                                                <button onClick={() => setCategoryFilter('all')} className={`flex-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${categoryFilter === 'all' ? 'bg-[#3b5998] text-white border-[#3b5998] shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Todos</button>
+                                                <button onClick={() => setCategoryFilter('REG')} className={`flex-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${categoryFilter === 'REG' ? 'bg-yellow-500 text-white border-yellow-500 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Regular</button>
+                                                <button onClick={() => setCategoryFilter('PVD')} className={`flex-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${categoryFilter === 'PVD' ? 'bg-gray-700 text-white border-gray-700 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Privado</button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="h-[1px] bg-gray-100 w-full" />
+                                    {/* Coluna Direita */}
+                                    <div className="p-4 space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Operador</label>
+                                            <Select value={providerFilter} onValueChange={setProviderFilter}>
+                                                <SelectTrigger className="w-full border-gray-200 rounded-lg h-9 bg-gray-50/50 text-xs">
+                                                    <SelectValue placeholder="Selecione o Operador" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Todos os Operadores</SelectItem>
+                                                    {providers.map(p => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
 
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Status Operacional</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button onClick={() => setStatusFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${statusFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Todos</button>
-                                        {statuses.map(stat => (
-                                            <button key={stat} onClick={() => setStatusFilter(stat)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${statusFilter === stat ? (stat === 'Ativo' ? 'bg-green-600 text-white border-green-600' : 'bg-gray-800 text-white border-gray-800') : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
-                                                {stat}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                                        {/* Tags Section (Collapsible) */}
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tags</label>
+                                                <button
+                                                    onClick={() => setIsTagsExpanded(!isTagsExpanded)}
+                                                    className="text-[9px] font-black text-[#3b5998] hover:underline uppercase"
+                                                >
+                                                    {isTagsExpanded ? 'Recolher' : 'Expandir'}
+                                                </button>
+                                            </div>
 
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tipo de Serviço</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <button onClick={() => setCategoryFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${categoryFilter === 'all' ? 'bg-[#3b5998] text-white border-[#3b5998] shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Todos</button>
-                                        <button onClick={() => setCategoryFilter('REG')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${categoryFilter === 'REG' ? 'bg-yellow-500 text-white border-yellow-500 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Regular</button>
-                                        <button onClick={() => setCategoryFilter('PVD')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${categoryFilter === 'PVD' ? 'bg-gray-700 text-white border-gray-700 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>Privado</button>
-                                    </div>
-                                </div>
+                                            {!isTagsExpanded ? (
+                                                <div className="text-[11px] text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100 font-medium truncate">
+                                                    {subCategoryFilter.length === 0 ? 'Todas as tags' : `${subCategoryFilter.length} selecionadas: ${subCategoryFilter.join(', ')}`}
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50/50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <button onClick={() => setSubCategoryFilter([])} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Todas</button>
+                                                    {subCategories.map(tag => (
+                                                        <button key={tag} onClick={() => toggleSubCategory(tag)} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter.includes(tag) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
+                                                            {tag}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
 
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Operador</label>
-                                    <Select value={providerFilter} onValueChange={setProviderFilter}>
-                                        <SelectTrigger className="w-full border-gray-200 rounded-xl h-11 bg-gray-50/50">
-                                            <SelectValue placeholder="Selecione o Operador" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Todos os Operadores</SelectItem>
-                                            {providers.map(p => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                        {/* Dias Elegíveis Section (Collapsible) */}
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Dias Elegíveis</label>
+                                                <button
+                                                    onClick={() => setIsDaysExpanded(!isDaysExpanded)}
+                                                    className="text-[9px] font-black text-[#3b5998] hover:underline uppercase"
+                                                >
+                                                    {isDaysExpanded ? 'Recolher' : 'Expandir'}
+                                                </button>
+                                            </div>
 
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tags</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button onClick={() => setSubCategoryFilter('all')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100'}`}>Todas</button>
-                                        {subCategories.map(tag => (
-                                            <button key={tag} onClick={() => setSubCategoryFilter(tag)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter === tag ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100 group'}`}>
-                                                {tag}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Dias Elegíveis</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button onClick={() => setDiasElegiveisFilter('all')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100'}`}>Todos</button>
-                                        {eligibleDays.map(day => (
-                                            <button key={day} onClick={() => setDiasElegiveisFilter(day)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter === day ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100'}`}>
-                                                {day}
-                                            </button>
-                                        ))}
+                                            {!isDaysExpanded ? (
+                                                <div className="text-[11px] text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100 font-medium truncate">
+                                                    {diasElegiveisFilter.length === 0 ? 'Todos os dias' : `${diasElegiveisFilter.length} selecionados: ${diasElegiveisFilter.join(', ')}`}
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50/50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <button onClick={() => setDiasElegiveisFilter([])} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Todos</button>
+                                                    {eligibleDays.map(day => (
+                                                        <button key={day} onClick={() => toggleDiasElegiveis(day)} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter.includes(day) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
+                                                            {day}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="p-6 mt-auto border-t bg-gray-50/50">
+
+                            {/* Fixed Footer */}
+                            <div className="p-4 border-t bg-white shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 h-10 rounded-lg text-xs font-bold text-gray-400 hover:text-red-500 border-gray-100 hover:bg-red-50"
+                                    onClick={clearFilters}
+                                >
+                                    Limpar Filtros
+                                </Button>
                                 <SheetClose asChild>
-                                    <Button className="w-full rounded-xl bg-[#3b5998] hover:bg-[#2d4373] h-12 font-bold shadow-lg shadow-blue-100">Ver Resultados</Button>
+                                    <Button className="flex-[2] h-10 rounded-lg bg-[#3b5998] hover:bg-[#2d4373] text-white text-xs font-bold shadow-lg shadow-[#3b5998]/10 ring-1 ring-white/10">
+                                        Aplicar / Fechar
+                                    </Button>
                                 </SheetClose>
-                                <Button variant="ghost" className="w-full mt-2 text-xs font-bold text-gray-400 hover:text-red-500" onClick={clearFilters}>Limpar Filtros</Button>
                             </div>
                         </SheetContent>
                     </Sheet>
@@ -418,7 +488,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
 
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-[#3b5998] hover:bg-blue-50 h-9 w-9 rounded-lg shrink-0" title="Legenda">
+                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-[#3b5998] hover:bg-[#3b5998]/5 h-9 w-9 rounded-lg shrink-0" title="Legenda">
                                 <Info className="h-4 w-4" />
                             </Button>
                         </PopoverTrigger>
@@ -459,7 +529,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
 
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-[#3b5998] hover:bg-blue-50 h-9 w-9 rounded-lg shrink-0" title="Colunas">
+                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-[#3b5998] hover:bg-[#3b5998]/5 h-9 w-9 rounded-lg shrink-0" title="Colunas">
                                 <Settings className="h-4 w-4" />
                             </Button>
                         </PopoverTrigger>
@@ -487,14 +557,14 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                 })}
                                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest p-2 mt-4">Invisíveis</div>
                                 {ALL_COLUMNS.filter(col => !visibleColumns.includes(col.id)).map(col => (
-                                    <button key={col.id} onClick={() => toggleColumn(col.id)} className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-blue-50 group">
+                                    <button key={col.id} onClick={() => toggleColumn(col.id)} className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#3b5998]/5 group">
                                         <span className="text-sm text-gray-500 group-hover:text-[#3b5998]">{col.label}</span>
                                         <Plus className="h-4 w-4 text-gray-300 group-hover:text-[#3b5998]" />
                                     </button>
                                 ))}
                             </div>
                             <div className="p-3 bg-gray-50/50 border-t">
-                                <Button variant="ghost" size="sm" onClick={() => setVisibleColumns(DEFAULT_VISIBLE_COLUMNS)} className="w-full text-[10px] font-bold text-[#3b5998] hover:bg-blue-100 uppercase gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => setVisibleColumns(DEFAULT_VISIBLE_COLUMNS)} className="w-full text-[10px] font-bold text-[#3b5998] hover:bg-[#3b5998]/10 uppercase gap-2">
                                     <RefreshCw className="h-3 w-3" /> Restaurar Padrão
                                 </Button>
                             </div>
@@ -539,14 +609,15 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                         </th>
                                     );
                                 })}
-                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight text-center">Add</th>
+                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight text-center w-10">Info</th>
+                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-tight text-center w-10">Add</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {filteredProducts.map((product) => {
                                 const isSelected = selectedProducts.find(p => p.id === product.id);
                                 return (
-                                    <tr key={product.id} className={`hover:bg-blue-50/30 transition-colors group cursor-pointer ${isSelected ? 'bg-blue-50/40' : ''}`} onClick={() => handleProductClick(product)}>
+                                    <tr key={product.id} className={`hover:bg-[#3b5998]/5 transition-colors group cursor-pointer ${isSelected ? 'bg-[#3b5998]/5' : ''}`} onClick={() => handleProductClick(product)}>
                                         {visibleColumns.filter(c => c !== 'status' && c !== 'category').map(colId => {
                                             if (colId === 'destination') return (
                                                 <td key={colId} className="px-4 py-4 whitespace-nowrap">
@@ -574,7 +645,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                                                     title={isRegular ? 'Regular' : 'Privado'}
                                                                 />
                                                             </div>
-                                                            <div className="text-sm font-bold text-gray-700 leading-snug group-hover:text-blue-700 transition-colors line-clamp-2" title={product.tourName}>
+                                                            <div className="text-sm font-bold text-gray-700 leading-snug group-hover:text-[#3b5998] transition-colors line-clamp-2" title={product.tourName}>
                                                                 {product.tourName}
                                                             </div>
                                                         </div>
@@ -588,8 +659,8 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                                             <button
                                                                 key={tag}
                                                                 type="button"
-                                                                onClick={(e) => { e.stopPropagation(); setSubCategoryFilter(tag); }}
-                                                                className="bg-gray-50 text-gray-400 px-2 py-0.5 rounded-[4px] font-bold text-[9px] uppercase hover:bg-gray-100 hover:text-gray-600 transition-all border border-gray-100 whitespace-nowrap"
+                                                                onClick={(e) => { e.stopPropagation(); toggleSubCategory(tag); }}
+                                                                className={`px-2 py-0.5 rounded-[4px] font-bold text-[9px] uppercase transition-all border whitespace-nowrap ${subCategoryFilter.includes(tag) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100 hover:text-gray-600'}`}
                                                             >
                                                                 {tag}
                                                             </button>
@@ -600,7 +671,7 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                             if (colId === 'provider') return (
                                                 <td key={colId} className="px-4 py-5 text-xs">
                                                     {product.provider && product.provider !== '–' ? (
-                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setProviderFilter(product.provider ?? ''); }} className="text-gray-400 px-0 py-0 font-medium hover:text-blue-600 transition-all whitespace-nowrap text-[11px]">
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setProviderFilter(product.provider ?? ''); }} className="text-gray-400 px-0 py-0 font-medium hover:text-[#3b5998] transition-all whitespace-nowrap text-[11px]">
                                                             {product.provider}
                                                         </button>
                                                     ) : '-'}
@@ -638,8 +709,8 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                                             <button
                                                                 key={day}
                                                                 type="button"
-                                                                onClick={(e) => { e.stopPropagation(); setDiasElegiveisFilter(day); }}
-                                                                className="bg-gray-100/80 text-gray-500 px-2 py-0.5 rounded-[4px] font-bold text-[9px] uppercase hover:bg-gray-200 transition-all active:scale-95 border border-gray-200/50 whitespace-nowrap"
+                                                                onClick={(e) => { e.stopPropagation(); toggleDiasElegiveis(day); }}
+                                                                className={`px-2 py-0.5 rounded-[4px] font-bold text-[9px] uppercase transition-all active:scale-95 border whitespace-nowrap ${diasElegiveisFilter.includes(day) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-gray-100/80 text-gray-500 border-gray-200/50 hover:bg-gray-200'}`}
                                                             >
                                                                 {day}
                                                             </button>
@@ -682,10 +753,18 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                             return <td key={colId} className="px-4 py-4 text-xs text-gray-500 truncate max-w-[150px]" title={val}>{val || '-'}</td>;
                                         })}
                                         <td className="px-4 py-4 text-center">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setSelectedDetailProduct(product); }}
+                                                className="text-gray-400 hover:text-[#3b5998] transition-colors p-1.5 rounded-full hover:bg-[#3b5998]/5"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </button>
+                                        </td>
+                                        <td className="px-4 py-4 text-center">
                                             {isSelected ? (
-                                                <div className="bg-blue-600 text-white p-1.5 rounded-full inline-flex"><CheckCircle2 className="h-4 w-4" /></div>
+                                                <div className="bg-[#3b5998] text-white p-1.5 rounded-full inline-flex"><CheckCircle2 className="h-4 w-4" /></div>
                                             ) : (
-                                                <div className="text-gray-300 group-hover:text-blue-500 transition-colors p-1.5 rounded-full inline-flex border border-transparent group-hover:border-blue-100"><Plus className="h-4 w-4" /></div>
+                                                <div className="text-gray-300 group-hover:text-[#3b5998] transition-colors p-1.5 rounded-full inline-flex border border-transparent group-hover:border-[#3b5998]/10"><Plus className="h-4 w-4" /></div>
                                             )}
                                         </td>
                                     </tr>
@@ -694,10 +773,136 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                         </tbody>
                     </table>
                 </div>
-                {filteredProducts.length === 0 && (
-                    <div className="text-center py-20 text-gray-500 bg-gray-50/50">Nenhum passeio encontrado.</div>
-                )}
             </div>
+
+            {/* Product Details Side Sheet */}
+            <Sheet open={!!selectedDetailProduct} onOpenChange={(open) => !open && setSelectedDetailProduct(null)}>
+                <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col">
+                    {selectedDetailProduct && (
+                        <>
+                            <SheetHeader className="p-6 border-b bg-gray-50/50 shrink-0 text-left">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="px-2 py-0.5 rounded bg-gray-100 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                                        {selectedDetailProduct.destination}
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <div className={`w-2 h-2 rounded-full ${getEffectiveStatus(selectedDetailProduct.status).toLowerCase() === 'ativo' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                        <div className={`w-2 h-2 rounded-full ${selectedDetailProduct.category === 'REG' ? 'bg-yellow-400' : 'bg-gray-800'}`} />
+                                    </div>
+                                </div>
+                                <SheetTitle className="text-2xl font-black text-gray-900 leading-tight uppercase tracking-tight text-left">
+                                    {selectedDetailProduct.tourName}
+                                </SheetTitle>
+                                <p className="text-xs font-bold text-[#3b5998] mt-1">{selectedDetailProduct.provider}</p>
+                            </SheetHeader>
+
+                            <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-32">
+                                {/* Details Grid */}
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pickup</label>
+                                        <p className="text-sm font-bold text-gray-700">{selectedDetailProduct.pickup || '-'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Retorno</label>
+                                        <p className="text-sm font-bold text-gray-700">{selectedDetailProduct.retorno || '-'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Duração</label>
+                                        <p className="text-sm font-bold text-gray-700">{selectedDetailProduct.duration || '-'}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Dias Elegíveis</label>
+                                        <p className="text-sm font-bold text-gray-700">{selectedDetailProduct.diasElegiveis?.join(', ') || '-'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Rich Text Sections */}
+                                {[
+                                    { label: 'O que levar', value: selectedDetailProduct.whatToBring },
+                                    { label: 'Descrição / Observações', value: selectedDetailProduct.description },
+                                    { label: 'Requisitos / Restrições', value: selectedDetailProduct.requirements },
+                                    { label: 'Taxas Extras', value: selectedDetailProduct.taxasExtras },
+                                ].map(section => section.value && (
+                                    <div key={section.label} className="space-y-2 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-[#3b5998]">{section.label}</label>
+                                        <p className="text-sm text-gray-600 leading-relaxed font-medium">{section.value}</p>
+                                    </div>
+                                ))}
+
+                                {/* Seasonal Pricing Table */}
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tabela de Preços (Completa)</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {/* Verão */}
+                                        <div className="p-4 rounded-xl border border-orange-100 bg-orange-50/20">
+                                            <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                                Verão 2026
+                                            </h4>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-baseline">
+                                                    <span className="text-xs text-gray-500 font-bold">Adulto</span>
+                                                    <span className="text-sm font-black text-orange-600">{formatPrice(isInternal ? (selectedDetailProduct as any).priceAdultoVer26 : (selectedDetailProduct as any).netoPriceAdultoVer26)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-baseline">
+                                                    <span className="text-xs text-gray-500 font-bold">Menor</span>
+                                                    <span className="text-sm font-black text-orange-600/80">{formatPrice(isInternal ? (selectedDetailProduct as any).priceMenorVer26 : (selectedDetailProduct as any).netoPriceMenorVer26)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-baseline">
+                                                    <span className="text-xs text-gray-500 font-bold">Bebê</span>
+                                                    <span className="text-sm font-black text-orange-600/60">{formatPrice(isInternal ? (selectedDetailProduct as any).priceBebeVer26 : (selectedDetailProduct as any).netoPriceBebeVer26)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* Inverno */}
+                                        <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/20">
+                                            <h4 className="text-[10px] font-black text-[#3b5998] uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-[#3b5998]" />
+                                                Inverno 2026
+                                            </h4>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-baseline">
+                                                    <span className="text-xs text-gray-500 font-bold">Adulto</span>
+                                                    <span className="text-sm font-black text-[#3b5998]">{formatPrice(isInternal ? (selectedDetailProduct as any).priceAdultoInv26 : (selectedDetailProduct as any).netoPriceAdultoInv26)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-baseline">
+                                                    <span className="text-xs text-gray-500 font-bold">Menor</span>
+                                                    <span className="text-sm font-black text-[#3b5998]/80">{formatPrice(isInternal ? (selectedDetailProduct as any).priceMenorInv26 : (selectedDetailProduct as any).netoPriceMenorInv26)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-baseline">
+                                                    <span className="text-xs text-gray-500 font-bold">Bebê</span>
+                                                    <span className="text-sm font-black text-[#3b5998]/60">{formatPrice(isInternal ? (selectedDetailProduct as any).priceBebeInv26 : (selectedDetailProduct as any).netoPriceBebeInv26)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 border-t bg-white shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex gap-3">
+                                <Button
+                                    className="flex-1 h-12 rounded-xl bg-[#3b5998] hover:bg-[#2d4373] text-white font-bold shadow-lg shadow-[#3b5998]/10"
+                                    onClick={() => {
+                                        if (selectedDetailProduct) {
+                                            handleProductClick(selectedDetailProduct);
+                                            setSelectedDetailProduct(null);
+                                        }
+                                    }}
+                                >
+                                    Adicionar à Simulação
+                                </Button>
+                                <Button variant="outline" className="h-12 w-12 rounded-xl border-gray-100 text-gray-400" onClick={() => setSelectedDetailProduct(null)}>
+                                    <X className="h-5 w-5" />
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
+            {filteredProducts.length === 0 && (
+                <div className="text-center py-20 text-gray-500 bg-gray-50/50">Nenhum passeio encontrado.</div>
+            )}
 
             <SalesSimulator
                 isOpen={isSimulatorOpen}
