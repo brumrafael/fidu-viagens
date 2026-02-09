@@ -1,6 +1,7 @@
 import { getProductBase, getAgencyBase, getBaseId } from './client';
 import { Product, Agency, MuralItem, NoticeReadLog, Reservation, ExchangeRate } from './types';
 import { FieldSet } from 'airtable';
+import { AIRTABLE_TABLES } from './config';
 
 // Helper to map record to Product
 const mapToProduct = (record: any): Product => {
@@ -81,19 +82,11 @@ export const getProducts = async (): Promise<Product[]> => {
     }
 
     try {
-        // Using explicit Table ID provided by user: tbl4RRA0YiPk8DMjs
-        const records = await base('tbl4RRA0YiPk8DMjs').select().all();
-
+        const records = await base(AIRTABLE_TABLES.PRODUCTS).select().all();
         return records.map(mapToProduct);
     } catch (err) {
-        console.error('Error fetching from Product table ID, trying fallback name Passeios:', err);
-        try {
-            const records = await base('Passeios').select().all();
-            return records.map(mapToProduct);
-        } catch (innerErr) {
-            console.error('Total failure fetching products:', innerErr);
-            return [];
-        }
+        console.error('Error fetching from Product table:', err);
+        return [];
     }
 };
 
@@ -106,21 +99,13 @@ export const getAgencyByEmail = async (email: string): Promise<Agency | null> =>
 
     const baseId = getBaseId();
 
-    // Try both naming conventions for the table
-    const tableNames = ['Acessos', 'tbljUc8sptfa7QnAE'];
+    // Fetch from standardized Access table
     let allRecords: any[] = [];
-    let usedTableName = '';
-
-    for (const tableName of tableNames) {
-        try {
-            allRecords = await base(tableName).select().all();
-            if (allRecords.length > 0) {
-                usedTableName = tableName;
-                break;
-            }
-        } catch (e: any) {
-            continue;
-        }
+    try {
+        allRecords = await base(AIRTABLE_TABLES.ACCESS).select().all();
+    } catch (e: any) {
+        console.error(`[AUTH] Failed to fetch from ${AIRTABLE_TABLES.ACCESS}: ${e.message}`);
+        return null;
     }
 
     if (allRecords.length === 0) {
@@ -177,7 +162,7 @@ export const createAgency = async (agency: Omit<Agency, 'id'>) => {
         throw new Error('Airtable Product base not initialized');
     }
 
-    await base('tbljUc8sptfa7QnAE').create([
+    await base(AIRTABLE_TABLES.ACCESS).create([
         {
             fields: {
                 'Agency': agency.name,
@@ -194,7 +179,7 @@ export async function getMuralItems(): Promise<MuralItem[]> {
 
     try {
         // Fetch only active notices
-        const records = await base('Mural').select({
+        const records = await base(AIRTABLE_TABLES.MURAL).select({
             filterByFormula: '{Ativo} = 1',
             sort: [
                 { field: 'Fixado', direction: 'desc' },
@@ -246,64 +231,37 @@ export async function getNoticeReadLogs(userId: string): Promise<NoticeReadLog[]
     const base = getProductBase();
     if (!base) return [];
 
-    // Try both naming conventions
-    const tableNames = ['Notice_Read_Log', 'Notice_read_log'];
-    let records: any[] = [];
-    let usedTableName = '';
+    try {
+        const records = await base(AIRTABLE_TABLES.NOTICE_READ_LOG).select({
+            filterByFormula: `{User} = '${userId}'`
+        }).all();
 
-    for (const tableName of tableNames) {
-        try {
-            records = await base(tableName).select({
-                filterByFormula: `{User} = '${userId}'`
-            }).all();
-            usedTableName = tableName;
-            break;
-        } catch (e) {
-            continue;
-        }
+        return records.map((record: any) => ({
+            id: record.id,
+            userId: (record.fields['User'] as string[])?.[0] || '',
+            noticeId: (record.fields['Notice'] as string[])?.[0] || '',
+            confirmedAt: (record.fields['Confirmed_at'] || record.fields['Confirmed_At']) as string || record.createdTime,
+            agencyId: record.fields['Agency_ID'] as string
+        }));
+    } catch (e) {
+        console.error(`Error fetching read logs from ${AIRTABLE_TABLES.NOTICE_READ_LOG}:`, e);
+        return [];
     }
-
-    if (!usedTableName) return [];
-
-    return records.map((record: any) => ({
-        id: record.id,
-        userId: (record.fields['User'] as string[])?.[0] || '',
-        noticeId: (record.fields['Notice'] as string[])?.[0] || '',
-        confirmedAt: (record.fields['Confirmed_at'] || record.fields['Confirmed_At']) as string || record.createdTime,
-        agencyId: record.fields['Agency_ID'] as string
-    }));
 }
 
 export async function confirmNoticeRead(userId: string, noticeId: string): Promise<void> {
     const base = getProductBase();
     if (!base) throw new Error('Product base not initialized');
 
-    const baseId = getBaseId();
-    console.log(`[confirmNoticeRead] Base: ${baseId?.substring(0, 7)}... User: ${userId}, Notice: ${noticeId}`);
-
-    // Determine correct table name
-    const tableNames = ['Notice_Read_Log', 'Notice_read_log'];
-    let targetTable = '';
-    for (const name of tableNames) {
-        try {
-            await base(name).select({ maxRecords: 1 }).all();
-            targetTable = name;
-            break;
-        } catch (e) { continue; }
-    }
-
-    if (!targetTable) throw new Error('Could not find Notice_Read_Log table in Airtable');
-    console.log(`[confirmNoticeRead] Using table: ${targetTable}`);
 
     // 1. Uniqueness check - Simple ID comparison
-    const existing = await base(targetTable).select({
+    const existing = await base(AIRTABLE_TABLES.NOTICE_READ_LOG).select({
         filterByFormula: `AND({User} = '${userId}', {Notice} = '${noticeId}')`,
         maxRecords: 1
     }).all();
 
     if (existing.length > 0) {
-        console.log(`[confirmNoticeRead] Record exists (${existing[0].id}). Updating timestamp.`);
-        await base(targetTable).update([
+        await base(AIRTABLE_TABLES.NOTICE_READ_LOG).update([
             {
                 id: existing[0].id,
                 fields: { 'Confirmed_at': new Date().toISOString() }
@@ -313,9 +271,8 @@ export async function confirmNoticeRead(userId: string, noticeId: string): Promi
     }
 
     // 2. Create record
-    console.log(`[confirmNoticeRead] Creating record in ${targetTable}`);
     try {
-        const result = await base(targetTable).create([
+        await base(AIRTABLE_TABLES.NOTICE_READ_LOG).create([
             {
                 fields: {
                     'User': [userId],
@@ -324,34 +281,27 @@ export async function confirmNoticeRead(userId: string, noticeId: string): Promi
                 }
             }
         ]);
-        console.log(`[confirmNoticeRead] Success! Created ID: ${result[0].id}`);
     } catch (createErr: any) {
         console.error('[confirmNoticeRead] Create failed:', createErr.message);
-        // Fallback for read-only fields
-        if (createErr.message?.includes('read-only') || createErr.message?.includes('formula') || createErr.message?.includes('field')) {
-            console.log('[confirmNoticeRead] Retrying with alternative field names...');
-            await base(targetTable).create([
+        // Simplified fallback for field names within the same table
+        await base(AIRTABLE_TABLES.NOTICE_READ_LOG).create([
+            {
+                fields: {
+                    'User': [userId],
+                    'Notice': [noticeId],
+                    'Confirmed_At': new Date().toISOString()
+                }
+            }
+        ]).catch(async () => {
+            await base(AIRTABLE_TABLES.NOTICE_READ_LOG).create([
                 {
                     fields: {
                         'User': [userId],
-                        'Notice': [noticeId],
-                        'Confirmed_At': new Date().toISOString()
+                        'Notice': [noticeId]
                     }
                 }
-            ]).catch(async () => {
-                console.log('[confirmNoticeRead] Final retry without timestamp fields...');
-                await base(targetTable).create([
-                    {
-                        fields: {
-                            'User': [userId],
-                            'Notice': [noticeId]
-                        }
-                    }
-                ]);
-            });
-        } else {
-            throw new Error(`Erro ao gravar no Airtable: ${createErr.message}`);
-        }
+            ]);
+        });
     }
 }
 
@@ -359,30 +309,21 @@ export async function getNoticeReaders(noticeId: string, agencyRecordId?: string
     const base = getProductBase();
     if (!base) return [];
 
-    const tableNames = ['Notice_Read_Log', 'Notice_read_log'];
     let records: any[] = [];
-    let usedTable = '';
-
-    const filterByFormula = `{Notice} = '${noticeId}'`;
-
-    for (const name of tableNames) {
-        try {
-            records = await base(name).select({
-                filterByFormula,
-                sort: [{ field: 'Confirmed_At', direction: 'desc' }]
-            }).all().catch(async () => {
-                // Fallback if Confirmed_At doesn't exist
-                return await base(name).select({ filterByFormula }).all();
-            });
-            usedTable = name;
-            break;
-        } catch (e) { continue; }
+    try {
+        records = await base(AIRTABLE_TABLES.NOTICE_READ_LOG).select({
+            filterByFormula: `{Notice} = '${noticeId}'`,
+            sort: [{ field: 'Confirmed_At', direction: 'desc' }]
+        }).all().catch(async () => {
+            // Fallback if Confirmed_At doesn't exist
+            return await base(AIRTABLE_TABLES.NOTICE_READ_LOG).select({
+                filterByFormula: `{Notice} = '${noticeId}'`
+            }).all();
+        });
+    } catch (e) {
+        console.error(`Error fetching readers from ${AIRTABLE_TABLES.NOTICE_READ_LOG}:`, e);
+        return [];
     }
-
-    if (!usedTable) return [];
-
-    console.log(`[getNoticeReaders] noticeId: ${noticeId}, agencyRecordId: ${agencyRecordId}, isAdmin: ${isAdmin}`);
-    console.log(`[getNoticeReaders] Found ${records.length} confirmations for notice ${noticeId} in ${usedTable}`);
 
     const allReaders = records.map((record: any) => {
         const fields = record.fields;
@@ -431,7 +372,7 @@ export async function createReservation(reservation: Reservation): Promise<strin
     if (!base) throw new Error('Agency base not initialized');
 
     try {
-        const record = await base('Reservas').create({
+        const record = await base(AIRTABLE_TABLES.RESERVATIONS).create({
             'Passeio': reservation.productName,
             'Destino': reservation.destination,
             'Agente': reservation.agentName,
@@ -516,23 +457,15 @@ export async function getExchangeRates(): Promise<ExchangeRate[]> {
     };
 
     try {
-        // Try ID first with 'Data do registro' sort
-        const records = await base('tbleUkvNsOBje1yUx').select({
+        // Use standardized table for Exchange Rates
+        const records = await base(AIRTABLE_TABLES.EXCHANGE).select({
             view: 'Grid view',
             sort: [{ field: 'Data do registro', direction: 'desc' }]
         }).all();
 
         return processRecords(records);
     } catch (err: any) {
-        console.warn(`Failed to fetch from table ID (tbleUkvNsOBje1yUx): ${err.message}. Trying fallback 'Cambio' without sort...`);
-
-        try {
-            // Fallback to Name 'Cambio', try unsorted first to be safe
-            const records = await base('Cambio').select().all();
-            return processRecords(records);
-        } catch (innerError: any) {
-            console.error(`Failed to fetch from fallback 'Cambio': ${innerError.message}`);
-            return [];
-        }
+        console.error(`Failed to fetch exchange rates from ${AIRTABLE_TABLES.EXCHANGE}: ${err.message}`);
+        return [];
     }
 }
