@@ -104,12 +104,42 @@ export const getAgencyByEmail = async (email: string): Promise<Agency | null> =>
         return null;
     }
 
-    const records = await base('tbljUc8sptfa7QnAE').select({
-        filterByFormula: `{mail} = '${email}'`,
-        maxRecords: 1
-    }).all();
+    const baseId = getBaseId();
+    console.log(`[getAgencyByEmail] Checking access for ${email} in base ${baseId?.substring(0, 7)}...`);
 
-    if (records.length === 0) return null;
+    // Try both naming conventions for the table
+    const tableNames = ['Acessos', 'tbljUc8sptfa7QnAE'];
+    let records: any[] = [];
+    let usedTableName = '';
+
+    for (const tableName of tableNames) {
+        try {
+            records = await base(tableName).select({
+                filterByFormula: `LOWER({mail}) = LOWER('${email}')`,
+                maxRecords: 1
+            }).all().catch(async () => {
+                // Try 'Email' if 'mail' fails
+                return await base(tableName).select({
+                    filterByFormula: `LOWER({Email}) = LOWER('${email}')`,
+                    maxRecords: 1
+                }).all();
+            });
+
+            if (records.length > 0) {
+                usedTableName = tableName;
+                break;
+            }
+        } catch (e) {
+            continue;
+        }
+    }
+
+    if (records.length === 0) {
+        console.warn(`[getAgencyByEmail] No access record found for email: ${email}`);
+        return null;
+    }
+
+    console.log(`[getAgencyByEmail] Found access for ${email} in table: ${usedTableName}`);
 
     const record = records[0];
     const fields = record.fields;
@@ -133,7 +163,7 @@ export const getAgencyByEmail = async (email: string): Promise<Agency | null> =>
         email: emailField as string,
         commissionRate: commissionField as number || 0,
         skills: skillsField as string[] || [],
-        canReserve: fields['Reserva'] as boolean || false,
+        canReserve: fields['Reserva'] as boolean || fields['Reservas'] as boolean || false,
         canAccessMural: fields['Mural'] as boolean || false,
         isInternal: fields['Interno'] as boolean || false,
         canAccessExchange: fields['Exchange'] as boolean || false,
