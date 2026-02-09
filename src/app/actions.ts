@@ -174,7 +174,7 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
     }
 }
 
-export async function fetchMural(): Promise<{ items: MuralItem[], readLogs: string[], isAdmin: boolean, error?: string }> {
+export async function fetchMural(): Promise<{ items: MuralItem[], readLogs: string[], isAdmin: boolean, userName: string, error?: string }> {
     try {
         const user = await currentUser();
         const email = user?.emailAddresses[0]?.emailAddress;
@@ -192,14 +192,17 @@ export async function fetchMural(): Promise<{ items: MuralItem[], readLogs: stri
             getNoticeReadLogs(agency.id)
         ]);
 
+        const userName = agency.agentName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Agente';
+
         return {
             items,
             readLogs: logs.map(l => l.noticeId),
-            isAdmin: !!agency.isAdmin
+            isAdmin: !!agency.isAdmin,
+            userName
         };
     } catch (e: any) {
         console.error('Error fetching mural:', e);
-        return { items: [], readLogs: [], isAdmin: false, error: `Erro ao carregar o mural: ${e.message || 'Unknown error'}` };
+        return { items: [], readLogs: [], isAdmin: false, userName: 'Agente', error: `Erro ao carregar o mural: ${e.message || 'Unknown error'}` };
     }
 }
 

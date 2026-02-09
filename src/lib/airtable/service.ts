@@ -220,7 +220,7 @@ export async function getNoticeReadLogs(userId: string): Promise<NoticeReadLog[]
 
     try {
         const records = await base('Notice_Read_Log').select({
-            filterByFormula: `{User} = '${userId}'`
+            filterByFormula: `SEARCH('${userId}', {User})`
         }).all();
 
         return records.map((record: any) => ({
@@ -240,23 +240,37 @@ export async function confirmNoticeRead(userId: string, noticeId: string): Promi
     const base = getProductBase();
     if (!base) throw new Error('Product base not initialized');
 
-    // 1. Uniqueness check
+    // @ts-ignore - access internal id for logging
+    console.log(`[confirmNoticeRead] Using Base ID: ${base._config.baseId}`);
+    console.log(`[confirmNoticeRead] Attempting confirmation for User: ${userId}, Notice: ${noticeId}`);
+
+    // 1. Uniqueness check using SEARCH for robust linked record matching
     const existing = await base('Notice_Read_Log').select({
-        filterByFormula: `AND({User} = '${userId}', {Notice} = '${noticeId}')`,
+        filterByFormula: `AND(SEARCH('${userId}', {User}), SEARCH('${noticeId}', {Notice}))`,
         maxRecords: 1
     }).all();
 
     if (existing.length > 0) {
-        console.log('User already confirmed this notice.');
+        console.log(`[confirmNoticeRead] Record already exists (ID: ${existing[0].id}). Updating timestamp.`);
+        await base('Notice_Read_Log').update([
+            {
+                id: existing[0].id,
+                fields: {
+                    'Confirmed_At': new Date().toISOString()
+                }
+            }
+        ]);
         return;
     }
 
     // 2. Create record
+    console.log(`[confirmNoticeRead] Creating new confirmation record.`);
     await base('Notice_Read_Log').create([
         {
             fields: {
                 'User': [userId],
-                'Notice': [noticeId]
+                'Notice': [noticeId],
+                'Confirmed_At': new Date().toISOString()
             }
         }
     ]);
@@ -267,7 +281,9 @@ export async function getNoticeReaders(noticeId: string, agencyRecordId?: string
     if (!base) return [];
 
     try {
-        const filterByFormula = `{Notice} = '${noticeId}'`;
+        // @ts-ignore - access internal id for logging
+        console.log(`[getNoticeReaders] Using Base ID: ${base._config.baseId}`);
+        const filterByFormula = `SEARCH('${noticeId}', {Notice})`;
 
         const records = await base('Notice_Read_Log').select({
             filterByFormula,
@@ -276,6 +292,8 @@ export async function getNoticeReaders(noticeId: string, agencyRecordId?: string
             // Fallback if Confirmed_At doesn't exist
             return await base('Notice_Read_Log').select({ filterByFormula }).all();
         });
+
+        console.log(`[getNoticeReaders] Found ${records.length} confirmations for notice ${noticeId}`);
 
         const allReaders = records.map((record: any) => {
             const fields = record.fields;

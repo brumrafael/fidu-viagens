@@ -11,10 +11,11 @@ interface MuralModalProps {
     item: MuralItem;
     initiallyRead: boolean;
     isAdmin: boolean;
+    userName: string;
     onClose: () => void;
 }
 
-export function MuralModal({ item, initiallyRead, isAdmin, onClose }: MuralModalProps) {
+export function MuralModal({ item, initiallyRead, isAdmin, userName, onClose }: MuralModalProps) {
     const router = useRouter();
     const [isReadingConfirmed, setIsReadingConfirmed] = useState(initiallyRead);
     const [readers, setReaders] = useState<{ userName: string, timestamp: string, agencyName?: string }[]>([]);
@@ -37,16 +38,28 @@ export function MuralModal({ item, initiallyRead, isAdmin, onClose }: MuralModal
     };
 
     const handleConfirmRead = async () => {
+        // Optimistic UI update
+        setIsReadingConfirmed(true);
+        const optimisticReader = {
+            userName: userName,
+            timestamp: new Date().toISOString(),
+            agencyName: 'Minha Agência' // Placeholder for UI, will be refreshed later
+        };
+
+        setReaders(prev => [optimisticReader, ...prev]);
+
         setIsSubmitting(true);
         try {
             const result = await confirmNoticeReadAction(item.id);
             if (result.success) {
-                setIsReadingConfirmed(true);
-                // Refresh readers list
+                // Refresh readers list to get accurate data from server
                 loadReaders();
                 // Refresh server side state for unread indicators
                 router.refresh();
             } else {
+                // Rollback on error
+                setIsReadingConfirmed(false);
+                setReaders(prev => prev.filter(r => r !== optimisticReader));
                 alert(result.error || 'Erro ao confirmar leitura.');
             }
         } finally {
