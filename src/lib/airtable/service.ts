@@ -98,9 +98,9 @@ export const getProducts = async (): Promise<Product[]> => {
 };
 
 export const getAgencyByEmail = async (email: string): Promise<Agency | null> => {
-    const base = getAgencyBase();
+    const base = getProductBase();
     if (!base) {
-        console.error('Airtable Agency base not initialized. Check AIRTABLE_AGENCY_BASE_ID.');
+        console.error('Airtable Product base not initialized.');
         return null;
     }
 
@@ -144,9 +144,9 @@ export const getAgencyByEmail = async (email: string): Promise<Agency | null> =>
 
 
 export const createAgency = async (agency: Omit<Agency, 'id'>) => {
-    const base = getAgencyBase();
+    const base = getProductBase();
     if (!base) {
-        throw new Error('Airtable Agency base not initialized');
+        throw new Error('Airtable Product base not initialized');
     }
 
     await base('tblkVI2PX3jPgYKXF').create([

@@ -28,18 +28,18 @@ export default async function DebugPage() {
         rawError += `Produtos Base (${productBaseId}): ${e.message}\n`;
     }
 
-    // Test 2: Agencies
+    // Test 2: Agencies (In Product Base)
     try {
-        if (aBase) {
-            // Note: Schema confirms "Table 1" as the name
-            await aBase('Table 1').select({ maxRecords: 1 }).firstPage();
-            agenciesTest = "✅ Sucesso";
+        if (pBase) {
+            // Using ID to be robust
+            await pBase('tblkVI2PX3jPgYKXF').select({ maxRecords: 1 }).firstPage();
+            agenciesTest = "✅ Sucesso (na Product Base)";
         } else {
-            agenciesTest = "❌ Base nula (AIRTABLE_AGENCY_BASE_ID)";
+            agenciesTest = "❌ Base nula";
         }
     } catch (e: any) {
         agenciesTest = `❌ Erro: ${e.message}`;
-        rawError += `Agências Base (${agencyBaseId}): ${e.message}\n`;
+        rawError += `Agências na Product Base (${productBaseId}): ${e.message}\n`;
     }
 
     return (

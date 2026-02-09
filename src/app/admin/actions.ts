@@ -1,7 +1,7 @@
 'use server'
 
 import { auth, currentUser } from '@clerk/nextjs/server';
-import { getProductBase, getAgencyBase } from '@/lib/airtable/client';
+import { getProductBase } from '@/lib/airtable/client';
 import { getProducts } from '@/lib/airtable/service';
 import { Agency } from '@/lib/airtable/types';
 
@@ -20,7 +20,7 @@ export async function getAdminProducts() {
 
 export async function getAgencies(): Promise<Agency[]> {
     if (!(await isAdmin())) throw new Error('Unauthorized');
-    const base = getAgencyBase();
+    const base = getProductBase();
     if (!base) return [];
 
     const records = await base('tblkVI2PX3jPgYKXF').select({
@@ -37,8 +37,8 @@ export async function getAgencies(): Promise<Agency[]> {
 
 export async function updateAgencyCommission(agencyId: string, newRate: number) {
     if (!(await isAdmin())) throw new Error('Unauthorized');
-    const base = getAgencyBase();
-    if (!base) throw new Error('Airtable Agency base not initialized');
+    const base = getProductBase();
+    if (!base) throw new Error('Airtable Product base not initialized');
 
     await base('tblkVI2PX3jPgYKXF').update([
         {
@@ -54,8 +54,8 @@ export async function updateAgencyCommission(agencyId: string, newRate: number) 
 
 export async function createNewAgency(name: string, email: string, commissionRate: number) {
     if (!(await isAdmin())) throw new Error('Unauthorized');
-    const base = getAgencyBase();
-    if (!base) throw new Error('Airtable Agency base not initialized');
+    const base = getProductBase();
+    if (!base) throw new Error('Airtable Product base not initialized');
 
     await base('tblkVI2PX3jPgYKXF').create([
         {
@@ -83,7 +83,7 @@ export interface SimulatedProduct {
 export async function getSimulatorProducts(agencyId: string): Promise<SimulatedProduct[]> {
     // Basic Admin Check (can be refined for "Sales" role later)
     if (!(await isAdmin())) throw new Error('Unauthorized');
-    const base = getAgencyBase();
+    const base = getProductBase();
     if (!base) return [];
 
     // 1. Get Agency Commission
