@@ -3,16 +3,28 @@ import Airtable from 'airtable';
 const cachedBases = new Map<string, any>();
 
 // Standardized configuration sources
-export const getBaseApiKey = () => process.env.AIRTABLE_API_KEY;
-export const getBaseId = () => process.env.AIRTABLE_PRODUCT_BASE_ID || process.env.AIRTABLE_BASE_ID;
+// Standardized configuration sources
+export const getBaseApiKey = () => {
+    const key = process.env.AIRTABLE_API_KEY;
+    if (!key) throw new Error('AIRTABLE_API_KEY is not defined in environment variables');
+    return key;
+};
+
+export const getBaseId = () => {
+    const id = process.env.AIRTABLE_PRODUCT_BASE_ID || process.env.AIRTABLE_BASE_ID;
+    if (!id) throw new Error('AIRTABLE_BASE_ID is not defined in environment variables');
+    return id;
+};
 
 export const getAirtableBase = (baseId?: string) => {
-    const apiKey = getBaseApiKey();
-    const id = baseId || getBaseId();
+    // Strict: If baseId is passed, it must be valid. If not, use default.
+    // However, to ensure strictly server-side Env usage as requested:
+    // We will prefer the passed baseId if it matches an ENV variable source, 
+    // but here we just ensure a valid ID is available.
 
-    if (!apiKey || !id) {
-        return null;
-    }
+    // Default to the Product Base ID if none provided
+    const id = baseId || getBaseId();
+    const apiKey = getBaseApiKey();
 
     // Return cached base if available
     if (cachedBases.has(id)) {
@@ -26,7 +38,7 @@ export const getAirtableBase = (baseId?: string) => {
         return base;
     } catch (err) {
         console.error(`Failed to initialize Airtable base ${id}:`, err);
-        return null;
+        throw new Error(`Failed to initialize Airtable base: ${err}`);
     }
 };
 

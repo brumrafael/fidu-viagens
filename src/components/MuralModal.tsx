@@ -22,6 +22,8 @@ export function MuralModal({ item, initiallyRead, isAdmin, userName, onClose }: 
     const [isLoadingReaders, setIsLoadingReaders] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+
+
     useEffect(() => {
         setIsReadingConfirmed(initiallyRead);
         loadReaders();
@@ -30,8 +32,13 @@ export function MuralModal({ item, initiallyRead, isAdmin, userName, onClose }: 
     const loadReaders = async () => {
         setIsLoadingReaders(true);
         try {
-            const { readers: readersData } = await fetchMuralReaders(item.id);
-            setReaders(readersData || []);
+            const response = await fetch(`/api/read-log?noticeId=${item.id}`);
+            const data = await response.json();
+            if (data.success) {
+                setReaders(data.readers || []);
+            }
+        } catch (error) {
+            console.error('Error loading readers:', error);
         } finally {
             setIsLoadingReaders(false);
         }
@@ -43,7 +50,7 @@ export function MuralModal({ item, initiallyRead, isAdmin, userName, onClose }: 
         const optimisticReader = {
             userName: userName,
             timestamp: new Date().toISOString(),
-            agencyName: 'Sua Agência' // Placeholder for UI, will be refreshed later
+            agencyName: 'Sua Agência (Você)'
         };
 
         setReaders(prev => [optimisticReader, ...prev]);
@@ -52,21 +59,31 @@ export function MuralModal({ item, initiallyRead, isAdmin, userName, onClose }: 
         try {
             const result = await confirmNoticeReadAction(item.id);
             if (result.success) {
-                // Refresh readers list to get accurate data from server
+                // Refresh readers list from API
                 try {
-                    const { readers: readersData } = await fetchMuralReaders(item.id);
-                    if (readersData) setReaders(readersData);
+                    const response = await fetch(`/api/read-log?noticeId=${item.id}`);
+                    const data = await response.json();
+
+                    if (data.readers) {
+                        // Merge or replace? Replace is cleaner if the API returns everything.
+                        setReaders(data.readers);
+                    }
                 } catch (readErr) {
                     console.error('[MuralModal] Error refreshing readers list:', readErr);
+                    alert("Não foi possível atualizar a lista de leitores agora, mas sua confirmação foi registrada.");
                 }
-                // Refresh server side state for unread indicators
+
+                // Refresh server side state (router) so the notification badge updates
                 router.refresh();
             } else {
-                // Rollback on error
-                setIsReadingConfirmed(false);
-                setReaders(prev => prev.filter(r => r !== optimisticReader));
-                console.warn(result.error || 'Erro ao confirmar leitura.');
+                throw new Error(result.error);
             }
+        } catch (err: any) {
+            // Rollback on CONFIRMATION error (write failed)
+            setIsReadingConfirmed(false);
+            setReaders(prev => prev.filter(r => r !== optimisticReader));
+            console.warn(err.message || 'Erro ao confirmar leitura.');
+            alert("Não foi possível confirmar sua leitura. Tente novamente.");
         } finally {
             setIsSubmitting(false);
         }
