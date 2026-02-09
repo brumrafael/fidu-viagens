@@ -241,7 +241,7 @@ export async function getNoticeReadLogs(userId: string): Promise<NoticeReadLog[]
         id: record.id,
         userId: (record.fields['User'] as string[])?.[0] || '',
         noticeId: (record.fields['Notice'] as string[])?.[0] || '',
-        confirmedAt: record.fields['Confirmed_At'] as string || record.createdTime,
+        confirmedAt: (record.fields['Confirmed_at'] || record.fields['Confirmed_At']) as string || record.createdTime,
         agencyId: record.fields['Agency_ID'] as string
     }));
 }
@@ -278,7 +278,7 @@ export async function confirmNoticeRead(userId: string, noticeId: string): Promi
         await base(targetTable).update([
             {
                 id: existing[0].id,
-                fields: { 'Confirmed_At': new Date().toISOString() }
+                fields: { 'Confirmed_at': new Date().toISOString() }
             }
         ]);
         return;
@@ -292,7 +292,7 @@ export async function confirmNoticeRead(userId: string, noticeId: string): Promi
                 fields: {
                     'User': [userId],
                     'Notice': [noticeId],
-                    'Confirmed_At': new Date().toISOString()
+                    'Confirmed_at': new Date().toISOString()
                 }
             }
         ]);
@@ -300,16 +300,27 @@ export async function confirmNoticeRead(userId: string, noticeId: string): Promi
     } catch (createErr: any) {
         console.error('[confirmNoticeRead] Create failed:', createErr.message);
         // Fallback for read-only fields
-        if (createErr.message?.includes('read-only') || createErr.message?.includes('formula')) {
-            console.log('[confirmNoticeRead] Retrying without Confirmed_At...');
+        if (createErr.message?.includes('read-only') || createErr.message?.includes('formula') || createErr.message?.includes('field')) {
+            console.log('[confirmNoticeRead] Retrying with alternative field names...');
             await base(targetTable).create([
                 {
                     fields: {
                         'User': [userId],
-                        'Notice': [noticeId]
+                        'Notice': [noticeId],
+                        'Confirmed_At': new Date().toISOString()
                     }
                 }
-            ]);
+            ]).catch(async () => {
+                console.log('[confirmNoticeRead] Final retry without timestamp fields...');
+                await base(targetTable).create([
+                    {
+                        fields: {
+                            'User': [userId],
+                            'Notice': [noticeId]
+                        }
+                    }
+                ]);
+            });
         } else {
             throw new Error(`Erro ao gravar no Airtable: ${createErr.message}`);
         }
@@ -361,7 +372,7 @@ export async function getNoticeReaders(noticeId: string, agencyRecordId?: string
 
         return {
             userName: finalUserName || 'Usuário',
-            timestamp: (fields['Confirmed_At'] || record.createdTime) as string,
+            timestamp: (fields['Confirmed_at'] || fields['Confirmed_At'] || record.createdTime) as string,
             agencyName: (finalAgencyName || 'Agência') as string,
             _agencyId: finalRecordAgencyId // Internal for filtering
         };
