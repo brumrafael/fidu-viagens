@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://intranet.fiduviagens.com.br"),
+  metadataBase: new URL("https://intranet.fiduviagens.com"),
   title: "Fidu Viagens Intranet",
   description: "Portal exclusivo para parceiros e colaboradores da Fidu Viagens.",
   openGraph: {
     title: "Fidu Viagens Intranet",
     description: "Acesse a intranet exclusiva para parceiros e colaboradores.",
-    url: "https://intranet.fiduviagens.com.br",
+    url: "https://intranet.fiduviagens.com",
     siteName: "Fidu Viagens",
     images: [
       {
