@@ -66,6 +66,21 @@ export function MuralModal({ item, initiallyRead, isAdmin, onClose }: MuralModal
         return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     };
 
+    const renderFormattedText = (text: string) => {
+        if (!text) return null;
+
+        // Split text by markdown bold pattern **text**
+        const parts = text.split(/(\*\*.*?\*\*)/g);
+
+        return parts.map((part, i) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                // Remove the asterisks and render as strong
+                return <strong key={i} className="font-black text-gray-900">{part.slice(2, -2)}</strong>;
+            }
+            return part;
+        });
+    };
+
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
@@ -102,8 +117,8 @@ export function MuralModal({ item, initiallyRead, isAdmin, onClose }: MuralModal
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {/* 2) Bloco de Impacto (Novo Componente) */}
                     <div className={`p-4 rounded-xl border ${item.priority === 'Crítica'
-                            ? 'bg-red-50 border-red-100'
-                            : 'bg-gray-50 border-gray-100'
+                        ? 'bg-red-50 border-red-100'
+                        : 'bg-gray-50 border-gray-100'
                         }`}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="flex items-center gap-3">
@@ -143,8 +158,8 @@ export function MuralModal({ item, initiallyRead, isAdmin, onClose }: MuralModal
                             <h3 className="text-xs font-bold text-[#3b5998] uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <AlertCircle className="h-3 w-3" /> Resumo Operacional
                             </h3>
-                            <div className="text-gray-800 text-[14px] font-medium leading-relaxed">
-                                {item.summary}
+                            <div className="text-gray-800 text-[14px] font-medium leading-relaxed whitespace-pre-wrap">
+                                {renderFormattedText(item.summary)}
                             </div>
                         </div>
                     )}
@@ -152,7 +167,7 @@ export function MuralModal({ item, initiallyRead, isAdmin, onClose }: MuralModal
                     {/* 4) Explicação detalhada (texto longo) */}
                     <div className="prose prose-blue max-w-none">
                         <div className="text-gray-700 text-[15px] leading-relaxed whitespace-pre-wrap">
-                            {item.content}
+                            {renderFormattedText(item.content)}
                         </div>
                     </div>
 
