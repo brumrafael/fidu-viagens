@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MuralPage() {
-    const { items, error } = await fetchMural();
+    const { items, readLogs, isAdmin, error } = await fetchMural();
 
     if (error && error.includes('ACESSO NEGADO')) {
         return (
@@ -38,7 +38,7 @@ export default async function MuralPage() {
                     {error}
                 </div>
             ) : (
-                <MuralGrid items={items} />
+                <MuralGrid items={items} readLogs={readLogs} isAdmin={isAdmin} />
             )}
         </div>
     );

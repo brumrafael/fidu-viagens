@@ -1,7 +1,7 @@
 'use server'
 
 import { currentUser } from '@clerk/nextjs/server';
-import { getProducts, getAgencyByEmail, getMuralItems, markAsRead, getMuralReaders, createReservation, getExchangeRates } from '@/lib/airtable/service';
+import { getProducts, getAgencyByEmail, getMuralItems, getNoticeReadLogs, confirmNoticeRead, getNoticeReaders, createReservation, getExchangeRates } from '@/lib/airtable/service';
 import { revalidatePath } from 'next/cache';
 
 export interface AgencyInfo {
@@ -59,8 +59,12 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
         // Fetch Mural items to check for unread
         let hasUnreadMural = false;
         try {
-            const muralItems = await getMuralItems(email, agencyInfo.agentName, agency.id);
-            hasUnreadMural = muralItems.some(item => !item.isRead);
+            const [muralItems, readLogs] = await Promise.all([
+                getMuralItems(),
+                getNoticeReadLogs(agency.id)
+            ]);
+            const readNoticeIds = new Set(readLogs.map(log => log.noticeId));
+            hasUnreadMural = muralItems.some(item => !readNoticeIds.has(item.id));
         } catch (e) {
             console.error('Error checking unread mural in Layout:', e);
         }
@@ -166,7 +170,7 @@ export async function getAgencyProducts(): Promise<{ products: AgencyProduct[], 
     }
 }
 
-export async function fetchMural(): Promise<{ items: MuralItem[], error?: string }> {
+export async function fetchMural(): Promise<{ items: MuralItem[], readLogs: string[], isAdmin: boolean, error?: string }> {
     try {
         const user = await currentUser();
         const email = user?.emailAddresses[0]?.emailAddress;
@@ -179,19 +183,23 @@ export async function fetchMural(): Promise<{ items: MuralItem[], error?: string
             throw new Error('ACESSO NEGADO: Você não tem permissão para acessar o Mural.');
         }
 
-        const userName = agency.agentName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        const [items, logs] = await Promise.all([
+            getMuralItems(),
+            getNoticeReadLogs(agency.id)
+        ]);
 
-        const items = await getMuralItems(email, userName, agency.id);
-        return { items };
+        return {
+            items,
+            readLogs: logs.map(l => l.noticeId),
+            isAdmin: !!agency.isAdmin
+        };
     } catch (e: any) {
         console.error('Error fetching mural:', e);
-        return { items: [], error: `Erro ao carregar o mural: ${e.message || 'Unknown error'}` };
+        return { items: [], readLogs: [], isAdmin: false, error: `Erro ao carregar o mural: ${e.message || 'Unknown error'}` };
     }
 }
 
-export async function markMuralAsReadAction(muralId: string): Promise<{ success: boolean, error?: string }> {
-    console.log('🎯 markMuralAsReadAction called with muralId:', muralId);
-
+export async function confirmNoticeReadAction(noticeId: string): Promise<{ success: boolean, error?: string }> {
     try {
         const user = await currentUser();
         if (!user) throw new Error('Not authenticated');
@@ -199,28 +207,19 @@ export async function markMuralAsReadAction(muralId: string): Promise<{ success:
         const email = user.emailAddresses[0]?.emailAddress;
         if (!email) throw new Error('No email found');
 
-        console.log('👤 User email:', email);
-
         const agency = await getAgencyByEmail(email);
         if (!agency) throw new Error('Agency not found');
 
-        console.log('🏢 Agency found:', { id: agency.id, name: agency.name, agentName: agency.agentName });
+        await confirmNoticeRead(agency.id, noticeId);
 
-        const userName = agency.agentName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Agente';
-
-        console.log('📝 Calling markAsRead with:', { muralId, email, userName, agencyId: agency.id });
-
-        await markAsRead(muralId, email, userName, agency.id);
-
-        console.log('✅ markAsRead completed successfully');
         return { success: true };
     } catch (e: any) {
-        console.error('❌ Error marking mural as read:', e);
+        console.error('Error confirming notice read:', e);
         return { success: false, error: e.message || 'Erro ao confirmar leitura.' };
     }
 }
 
-export async function fetchMuralReaders(muralId: string): Promise<{ readers: { userName: string, timestamp: string }[], error?: string }> {
+export async function fetchMuralReaders(noticeId: string): Promise<{ readers: { userName: string, timestamp: string, agencyName?: string }[], error?: string }> {
     try {
         const user = await currentUser();
         if (!user) throw new Error('Not authenticated');
@@ -231,7 +230,7 @@ export async function fetchMuralReaders(muralId: string): Promise<{ readers: { u
         const agency = await getAgencyByEmail(email);
         if (!agency) throw new Error('Agency not found');
 
-        const readers = await getMuralReaders(muralId, agency.id, agency.name);
+        const readers = await getNoticeReaders(noticeId, agency.id, !!agency.isAdmin);
         return { readers };
     } catch (e) {
         console.error('Error fetching mural readers:', e);

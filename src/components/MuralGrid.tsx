@@ -8,31 +8,34 @@ import { MuralModal } from './MuralModal';
 
 interface MuralGridProps {
     items: MuralItem[];
+    readLogs: string[];
+    isAdmin: boolean;
 }
 
-export function MuralGrid({ items }: MuralGridProps) {
+export function MuralGrid({ items, readLogs, isAdmin }: MuralGridProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedItem, setSelectedItem] = useState<MuralItem | null>(null);
 
     const filteredItems = useMemo(() => {
+        const priorityScore: Record<string, number> = { 'Alta': 3, 'Média': 2, 'Baixa': 1 };
+
         const filtered = items.filter(item =>
             item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
             item.category.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
-        // Sort by priority: 1) Unread (!isRead), 2) New (isNew), 3) Read
         return filtered.sort((a, b) => {
-            // Unread items first
-            if (!a.isRead && b.isRead) return -1;
-            if (a.isRead && !b.isRead) return 1;
+            // 1. Pinned first
+            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
 
-            // Among same read status, new items first
-            if (a.isNew && !b.isNew) return -1;
-            if (!a.isNew && b.isNew) return 1;
+            // 2. Priority
+            const scoreA = priorityScore[a.priority] || 0;
+            const scoreB = priorityScore[b.priority] || 0;
+            if (scoreA !== scoreB) return scoreB - scoreA;
 
-            // Keep original date order for items with same status
-            return new Date(b.date).getTime() - new Date(a.date).getTime();
+            // 3. Date
+            return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
         });
     }, [items, searchTerm]);
 
@@ -70,49 +73,52 @@ export function MuralGrid({ items }: MuralGridProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {filteredItems.map((item) => (
-                                <tr
-                                    key={item.id}
-                                    className={`hover:bg-gray-100/80 transition-colors cursor-pointer group ${!item.isRead ? 'bg-blue-50/50' : 'bg-white'
-                                        }`}
-                                    onClick={() => setSelectedItem(item)}
-                                >
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                {!item.isRead && (
-                                                    <div className="w-2 h-2 rounded-full bg-[#3b5998] animate-pulse" title="Não lido" />
-                                                )}
-                                                {item.isNew && (
-                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 uppercase w-fit border border-red-200">
-                                                        Nova
-                                                    </span>
-                                                )}
+                            {filteredItems.map((item) => {
+                                const isRead = readLogs.includes(item.id);
+                                return (
+                                    <tr
+                                        key={item.id}
+                                        className={`hover:bg-gray-100/80 transition-colors cursor-pointer group ${!isRead ? 'bg-blue-50/50' : 'bg-white'
+                                            }`}
+                                        onClick={() => setSelectedItem(item)}
+                                    >
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {!isRead && (
+                                                        <div className="w-2 h-2 rounded-full bg-[#3b5998] animate-pulse" title="Não lido" />
+                                                    )}
+                                                    {item.priority === 'Alta' && (
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 uppercase w-fit border border-red-200">
+                                                            Urgente
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-gray-600 text-[13px] font-medium">{formatDate(item.publishedAt)}</span>
                                             </div>
-                                            <span className="text-gray-600 text-[13px] font-medium">{formatDate(item.date)}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-4 whitespace-nowrap">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.category === 'Atualização de Valores'
-                                            ? 'bg-green-100 text-green-700'
-                                            : 'bg-purple-100 text-purple-700'
-                                            }`}>
-                                            {item.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <Megaphone className="h-4 w-4 text-gray-400 group-hover:text-[#3b5998]" />
-                                            <span className="text-gray-900 font-semibold text-[13px]">{item.title}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-4">
-                                        <p className="text-gray-500 text-[13px] line-clamp-1">
-                                            {item.details}
-                                        </p>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${['Atualização de Valores', 'Valores'].includes(item.category)
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-purple-100 text-purple-700'
+                                                }`}>
+                                                {item.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <Megaphone className="h-4 w-4 text-gray-400 group-hover:text-[#3b5998]" />
+                                                <span className="text-gray-900 font-semibold text-[13px]">{item.title}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <p className="text-gray-500 text-[13px] line-clamp-1">
+                                                {item.summary || item.content}
+                                            </p>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -127,6 +133,8 @@ export function MuralGrid({ items }: MuralGridProps) {
             {selectedItem && (
                 <MuralModal
                     item={selectedItem}
+                    initiallyRead={readLogs.includes(selectedItem.id)}
+                    isAdmin={isAdmin}
                     onClose={() => setSelectedItem(null)}
                 />
             )}

@@ -162,8 +162,6 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
     const [diasElegiveisFilter, setDiasElegiveisFilter] = useState<string[]>([]);
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'tourName', direction: 'asc' });
     const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-    const [isTagsExpanded, setIsTagsExpanded] = useState(false);
-    const [isDaysExpanded, setIsDaysExpanded] = useState(false);
     const [selectedDetailProduct, setSelectedDetailProduct] = useState<AgencyProduct | null>(null);
 
     const getEffectiveStatus = (status?: any) => {
@@ -443,60 +441,30 @@ export function ProductGrid({ products, isInternal, agencyInfo }: ProductGridPro
                                             </Select>
                                         </div>
 
-                                        {/* Tags Section (Collapsible) */}
+                                        {/* Tags Section */}
                                         <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tags</label>
-                                                <button
-                                                    onClick={() => setIsTagsExpanded(!isTagsExpanded)}
-                                                    className="text-[9px] font-black text-[#3b5998] hover:underline uppercase"
-                                                >
-                                                    {isTagsExpanded ? 'Recolher' : 'Expandir'}
-                                                </button>
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tags</label>
+                                            <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50/50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <button onClick={() => setSubCategoryFilter([])} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Todas</button>
+                                                {subCategories.map(tag => (
+                                                    <button key={tag} onClick={() => toggleSubCategory(tag)} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter.includes(tag) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
+                                                        {tag}
+                                                    </button>
+                                                ))}
                                             </div>
-
-                                            {!isTagsExpanded ? (
-                                                <div className="text-[11px] text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100 font-medium truncate">
-                                                    {subCategoryFilter.length === 0 ? 'Todas as tags' : `${subCategoryFilter.length} selecionadas: ${subCategoryFilter.join(', ')}`}
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50/50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                    <button onClick={() => setSubCategoryFilter([])} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Todas</button>
-                                                    {subCategories.map(tag => (
-                                                        <button key={tag} onClick={() => toggleSubCategory(tag)} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${subCategoryFilter.includes(tag) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
-                                                            {tag}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
 
-                                        {/* Dias Elegíveis Section (Collapsible) */}
+                                        {/* Dias Elegíveis Section */}
                                         <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Dias Elegíveis</label>
-                                                <button
-                                                    onClick={() => setIsDaysExpanded(!isDaysExpanded)}
-                                                    className="text-[9px] font-black text-[#3b5998] hover:underline uppercase"
-                                                >
-                                                    {isDaysExpanded ? 'Recolher' : 'Expandir'}
-                                                </button>
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Dias Elegíveis</label>
+                                            <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50/50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <button onClick={() => setDiasElegiveisFilter([])} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Todos</button>
+                                                {eligibleDays.map(day => (
+                                                    <button key={day} onClick={() => toggleDiasElegiveis(day)} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter.includes(day) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
+                                                        {day}
+                                                    </button>
+                                                ))}
                                             </div>
-
-                                            {!isDaysExpanded ? (
-                                                <div className="text-[11px] text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100 font-medium truncate">
-                                                    {diasElegiveisFilter.length === 0 ? 'Todos os dias' : `${diasElegiveisFilter.length} selecionados: ${diasElegiveisFilter.join(', ')}`}
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50/50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                    <button onClick={() => setDiasElegiveisFilter([])} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>Todos</button>
-                                                    {eligibleDays.map(day => (
-                                                        <button key={day} onClick={() => toggleDiasElegiveis(day)} className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all ${diasElegiveisFilter.includes(day) ? 'bg-[#3b5998] text-white border-[#3b5998]' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
-                                                            {day}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>

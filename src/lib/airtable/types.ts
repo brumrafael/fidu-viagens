@@ -80,6 +80,7 @@ export interface Agency {
     canAccessMural: boolean;
     isInternal: boolean; // Internal vendor (no commission display, see sale price)
     canAccessExchange: boolean;
+    isAdmin: boolean; // Column 'Admin'
 }
 
 export interface ExchangeRate {
@@ -93,21 +94,24 @@ export interface ExchangeRate {
 
 export interface MuralItem {
     id: string;
-    date: string;
-    category: 'Atualização de Valores' | 'Atualização de funcionamento' | string;
     title: string;
-    details: string;
-    isNew: boolean;
-    isRead: boolean;
+    summary?: string; // Column 'Resumo'
+    content: string; // Column 'Notes'
+    category: string; // Column 'Categoria'
+    priority: 'Alta' | 'Média' | 'Baixa'; // Column 'Prioridade'
+    publishedAt: string; // Column 'Publicado_em'
+    isPinned: boolean; // Column 'Fixado'
+    requiresConfirmation: boolean; // Column 'Requer_Confirmacao'
+    isActive: boolean; // Column 'Ativo'
+    attachments?: { url: string; filename: string }[]; // Column 'Attachments'
 }
 
-export interface MuralReadLog {
+export interface NoticeReadLog {
     id: string;
-    muralId: string;
-    userEmail: string;
-    userName: string;
-    agencyId: string;
-    timestamp: string;
+    userId: string; // Link to Acessos
+    noticeId: string; // Link to Mural
+    confirmedAt: string;
+    agencyId: string; // Lookup via User
 }
 export interface Reservation {
     id?: string;
